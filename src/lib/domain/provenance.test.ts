@@ -26,6 +26,12 @@ describe('provenance', () => {
 
       expect(item3.provenance).toHaveLength(2);
       expect(item3.canonicalText).toBe('Third version');
+      expect(item3.provenance[0]).toEqual({
+        text: 'Second version',
+        originalText: 'First version',
+        fromResumeId: 'resume-1',
+        at: '2026-10-15T10:00:00Z',
+      });
     });
 
     it('originalText of 2nd accept = text of 1st accept', () => {
