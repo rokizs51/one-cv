@@ -30,7 +30,15 @@ export async function currentUsage(
     .eq('month', monthKey(new Date()))
     .single();
 
-  if (error || !data) {
+  if (error) {
+    // PGRST116 = no rows found, which is valid (user has no usage yet)
+    if (error.code === 'PGRST116') {
+      return { generations: 0, llmCostMicros: 0 };
+    }
+    throw error;
+  }
+
+  if (!data) {
     return { generations: 0, llmCostMicros: 0 };
   }
 
@@ -50,15 +58,19 @@ export async function recordGeneration(
 ): Promise<void> {
   const month = monthKey(new Date());
 
-  const { data: existing } = await supa
+  const { data: existing, error: readError } = await supa
     .from('generation_quota')
     .select('generations, llm_cost_micros')
     .eq('user_id', userId)
     .eq('month', month)
     .single();
 
+  if (readError && readError.code !== 'PGRST116') {
+    throw readError;
+  }
+
   if (existing) {
-    await supa
+    const { error: updateError } = await supa
       .from('generation_quota')
       .update({
         generations: (existing.generations as number) + 1,
@@ -66,12 +78,16 @@ export async function recordGeneration(
       })
       .eq('user_id', userId)
       .eq('month', month);
+
+    if (updateError) throw updateError;
   } else {
-    await supa.from('generation_quota').insert({
+    const { error: insertError } = await supa.from('generation_quota').insert({
       user_id: userId,
       month,
       generations: 1,
       llm_cost_micros: costMicros,
     });
+
+    if (insertError) throw insertError;
   }
 }

@@ -64,7 +64,8 @@ export async function updateItem(
   if (patch.pinned !== undefined) row.pinned = patch.pinned;
   if (patch.position !== undefined) row.position = patch.position;
 
-  await supa.from('profile_items').update(row).eq('id', itemId);
+  const { error } = await supa.from('profile_items').update(row).eq('id', itemId);
+  if (error) throw error;
 }
 
 /**
@@ -82,13 +83,15 @@ export async function acceptText(
   const at = new Date().toISOString();
   const updated = applyAccept(item, newText, fromResumeId, at);
 
-  await supa
+  const { error } = await supa
     .from('profile_items')
     .update({
       canonical_text: updated.canonicalText,
       provenance: updated.provenance,
     })
     .eq('id', itemId);
+
+  if (error) throw error;
 
   return updated;
 }
@@ -105,13 +108,15 @@ export async function revertText(
 ): Promise<ProfileItem> {
   const updated = revertLast(item);
 
-  await supa
+  const { error } = await supa
     .from('profile_items')
     .update({
       canonical_text: updated.canonicalText,
       provenance: updated.provenance,
     })
     .eq('id', itemId);
+
+  if (error) throw error;
 
   return updated;
 }

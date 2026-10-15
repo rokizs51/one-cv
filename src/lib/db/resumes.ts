@@ -90,7 +90,8 @@ export async function updateResumeFields(
   if (patch.userEdits !== undefined) row.user_edits = patch.userEdits;
   if (patch.fit !== undefined) row.fit = patch.fit;
 
-  await supa.from('generated_resumes').update(row).eq('id', resumeId);
+  const { error } = await supa.from('generated_resumes').update(row).eq('id', resumeId);
+  if (error) throw error;
 }
 
 /**

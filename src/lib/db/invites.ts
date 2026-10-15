@@ -10,27 +10,19 @@ export async function claimInvite(
   code: string,
   userId: string
 ): Promise<boolean> {
-  // First check if the invite exists and is unclaimed
-  const { data: existing } = await supa
-    .from('invites')
-    .select('code, claimed_by')
-    .eq('code', code)
-    .single();
-
-  if (!existing || existing.claimed_by !== null) {
-    return false;
-  }
-
-  // Attempt to claim it
-  const { error } = await supa
+  const { data, error } = await supa
     .from('invites')
     .update({
       claimed_by: userId,
       claimed_at: new Date().toISOString(),
     })
-    .eq('code', code);
+    .eq('code', code)
+    .eq('claimed_by', null)
+    .select('code');
 
-  return !error;
+  if (error) throw error;
+  
+  return data.length === 1;
 }
 
 /**
@@ -43,11 +35,19 @@ export async function inviteExists(code: string): Promise<boolean> {
   const { createAnonClient } = await import('./client');
   const supa = createAnonClient();
 
-  const { data } = await supa
+  const { data, error } = await supa
     .from('invites')
     .select('code')
     .eq('code', code)
     .single();
+
+  if (error) {
+    // PGRST116 = no rows found, which means invite doesn't exist
+    if (error.code === 'PGRST116') {
+      return false;
+    }
+    throw error;
+  }
 
   return !!data;
 }

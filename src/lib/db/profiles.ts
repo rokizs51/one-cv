@@ -77,8 +77,10 @@ export async function updatePersonal(
   userId: string,
   p: PersonalInfo
 ): Promise<void> {
-  await supa
+  const { error } = await supa
     .from('profiles')
     .update({ personal: p })
     .eq('user_id', userId);
+
+  if (error) throw error;
 }
