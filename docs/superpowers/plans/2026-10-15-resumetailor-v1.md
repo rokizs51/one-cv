@@ -20,19 +20,11 @@
 - Copy tone: plain language, no markdown/JSON exposed in the user path.
 - Tests run with `pnpm test` (Vitest). Route handlers are tested by importing the handler and calling it with `Request` objects and injected fakes. DB/RLS correctness is verified in the Task 3 manual step against the dev Supabase project.
 
-## UI Design
-
-Owner's direction — **minimalist, fintech-UI inspired**, full text in the spec (`UI Design Direction`): clean and functional, strong typography, generous whitespace, neutral palette with high-contrast primary actions, subtle borders, restrained cards, mobile-first; no gradients/glassmorphism/glowing cards. Locked calls: one accent per screen reserved for the primary action; destructive actions muted warning tone; app chrome only — the rendered resume (Task 9) stays plain and ATS-clean.
-
-Concrete interpretation (my call, builder's tokens): Tailwind neutral scale (zinc/stone background, near-black text), accent via CSS variable, system UI font stack, consistent spacing rhythm with generous section padding, `shadow-sm` only on the preview page surface. The vibe is fixed: a calculator, not a carnival.
-
-Every UI task (5, 7, 11, 12, 13, 14) follows this section.
-
 ## UI Design (owner-provided reference — applies to all UI tasks)
 
 **Direction: minimalist, fintech-UI inspired.** Clean, functional, approachable. Strong typography and generous whitespace. Neutral color palette with high-contrast primary actions. Clear transaction lists and easy-to-read financial summaries — translated to this app: the version list, profile section lists, JD chip row, and match panel are the "transactions/summaries," and they must scan at a glance. Simple charts that communicate insights without visual clutter — v1 has no charts; the spirit governs completeness hints, the fit badge, and cut lists. Subtle borders, restrained card usage, consistent spacing. Responsive layout optimized for mobile, polished desktop. **Avoid**: excessive gradients, glassmorphism, glowing cards, generic SaaS dashboard aesthetics. Goal: effortless, understandable, quick.
 
-Builder rules (my translation, owner veto): Tailwind `neutral`/`zinc` scale + exactly **one accent color reserved for primary actions** (Generate, Accept, Download PDF); destructive actions (Reject, Delete account) get a distinct muted warning tone, never the accent; system font stack; 8px spacing rhythm; cards only for the version list and preview frame; max shadow `shadow-sm`. **Exempt from all of this: the rendered resume PDF (Task 9)** — that stays plain, single-column, ATS-strict; the fintech aesthetic governs the app chrome, never the document a recruiter reads (my call, consistent with the spec's single-template constraint).
+Builder rules (my translation, owner veto): Tailwind `neutral`/`zinc` scale + exactly **one accent color reserved for primary actions** (Generate, Accept, Download PDF); destructive actions (Reject, Delete account) get a distinct muted warning tone, never the accent; system font stack; 8px spacing rhythm; cards only for the version list and preview frame; max shadow `shadow-sm`. **Exempt from all of this: the rendered resume PDF (Task 9)** — that stays plain, single-column, ATS-strict; the fintech aesthetic governs the app chrome, never the document a recruiter reads (my call, consistent with the spec's single-template constraint). Vibe, one line: a calculator, not a carnival. Every UI task (5, 7, 11, 12, 13, 14) follows this section.
 
 ## Review Focus
 
