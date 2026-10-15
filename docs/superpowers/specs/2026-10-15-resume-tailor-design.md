@@ -60,6 +60,18 @@ The app does not translate. Profile, JD, and CV are whatever language the user w
 - **LLM usage (my call)**: one thin internal `ai` module, provider-swappable. Extraction tasks (JD parse, future CV import) use a cheap structured-output tier (e.g. Haiku/Flash-class, verified ~$0.10–$0.50 per 1M tokens Oct 2026); enhance uses the stronger tier, **single call per generation** over the JD + relevant profile slice (never the whole profile) to keep cost bounded.
 - **Budget mode (my call)**: a server-side circuit breaker, not a user-visible control. When the monthly LLM spend ceiling is hit, generation falls back to deterministic keyword scoring (no LLM); enhance and composed summaries are temporarily disabled with an honest notice. Keeps free-tier economics safe by construction.
 
+## UI Design Direction (owner's)
+
+Minimalist, fintech-UI inspired — the experience should feel effortless, understandable, and quick to use.
+
+- Clean, functional, approachable. Strong typography, generous whitespace.
+- Neutral color palette with high-contrast primary actions.
+- Clear lists and easy-to-read summaries (dashboard versions, profile sections, JD chips, match keywords).
+- Subtle borders, restrained card usage, consistent spacing. Mobile-first responsive, polished desktop.
+- Avoid excessive gradients, glassmorphism, glowing cards, generic SaaS-dashboard aesthetics.
+
+Two locked interpretations (my calls): exactly **one accent color**, reserved for each screen's primary action, with destructive actions in a distinct muted warning tone; and the direction governs **app chrome only — the rendered resume stays plain and ATS-clean**, never decorated. Concrete tokens (neutrals, font stack, spacing) are the builder's; the mood is fixed.
+
 ## Screen map
 
 1. **Dashboard** — after sign-in: profile completeness hints; saved JDs and generated versions; "New tailored CV" primary action.
@@ -88,7 +100,7 @@ The app does not translate. Profile, JD, and CV are whatever language the user w
 
 ## Decisions ledger
 
-**The owner's:** web app for self + everyone; as-is/enhance modes with a switch; enhance may sharpen wording, always under accept/edit/reject; field-by-field first, CV-import phase 2; compounding profile (accepts flow back); composed per-JD headline summary from a stored career snapshot; no translation in v1; invite/waitlist launch with a monthly cap; purpose = people getting CVs that fit the jobs they apply to, free and honest while it proves itself.
+**The owner's:** web app for self + everyone; as-is/enhance modes with a switch; enhance may sharpen wording, always under accept/edit/reject; field-by-field first, CV-import phase 2; compounding profile (accepts flow back); composed per-JD headline summary from a stored career snapshot; no translation in v1; invite/waitlist launch with a monthly cap; purpose = people getting CVs that fit the jobs they apply to, free and honest while it proves itself; minimalist fintech-inspired UI direction for app chrome.
 
 **My calls (check while reading):** name "ResumeTailor"; Next.js + Supabase + react-pdf + Vercel stack; single ATS-clean template; one-page hard rule with visible cuts, pins, and a 2-page escape hatch; model-driven editing (no free-floating text); section ordering incl. early-career swap; 50 gens/user/month cap; budget-mode circuit breaker as server-side fallback; deletion + JSON export in v1; English postings assumption; email sign-in.
 
