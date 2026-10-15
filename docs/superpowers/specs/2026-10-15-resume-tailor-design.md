@@ -72,6 +72,12 @@ Minimalist, fintech-UI inspired — the experience should feel effortless, under
 
 Two locked interpretations (my calls): exactly **one accent color**, reserved for each screen's primary action, with destructive actions in a distinct muted warning tone; and the direction governs **app chrome only — the rendered resume stays plain and ATS-clean**, never decorated. Concrete tokens (neutrals, font stack, spacing) are the builder's; the mood is fixed.
 
+## UI Design Direction (owner's)
+
+**Minimalist, fintech-UI inspired.** Clean, functional, approachable; strong typography and generous whitespace; neutral palette with high-contrast primary actions; clear lists and easy-to-read summaries; subtle borders, restrained cards, consistent spacing; mobile-first responsive, polished desktop. No excessive gradients, no glassmorphism, no glowing cards, no generic SaaS-dashboard aesthetics. Goal: the experience feels effortless, understandable, and quick. Full builder-level detail and per-task pointers live in the plan's `UI Design` section.
+
+Two locked interpretations (my calls): exactly one accent color, reserved for each screen's primary action (destructive actions get a distinct muted warning tone); the direction governs **app chrome only** — the rendered resume itself stays plain and ATS-clean, never decorated.
+
 ## Screen map
 
 1. **Dashboard** — after sign-in: profile completeness hints; saved JDs and generated versions; "New tailored CV" primary action.

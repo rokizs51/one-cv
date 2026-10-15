@@ -28,6 +28,12 @@ Concrete interpretation (my call, builder's tokens): Tailwind neutral scale (zin
 
 Every UI task (5, 7, 11, 12, 13, 14) follows this section.
 
+## UI Design (owner-provided reference — applies to all UI tasks)
+
+**Direction: minimalist, fintech-UI inspired.** Clean, functional, approachable. Strong typography and generous whitespace. Neutral color palette with high-contrast primary actions. Clear transaction lists and easy-to-read financial summaries — translated to this app: the version list, profile section lists, JD chip row, and match panel are the "transactions/summaries," and they must scan at a glance. Simple charts that communicate insights without visual clutter — v1 has no charts; the spirit governs completeness hints, the fit badge, and cut lists. Subtle borders, restrained card usage, consistent spacing. Responsive layout optimized for mobile, polished desktop. **Avoid**: excessive gradients, glassmorphism, glowing cards, generic SaaS dashboard aesthetics. Goal: effortless, understandable, quick.
+
+Builder rules (my translation, owner veto): Tailwind `neutral`/`zinc` scale + exactly **one accent color reserved for primary actions** (Generate, Accept, Download PDF); destructive actions (Reject, Delete account) get a distinct muted warning tone, never the accent; system font stack; 8px spacing rhythm; cards only for the version list and preview frame; max shadow `shadow-sm`. **Exempt from all of this: the rendered resume PDF (Task 9)** — that stays plain, single-column, ATS-strict; the fintech aesthetic governs the app chrome, never the document a recruiter reads (my call, consistent with the spec's single-template constraint).
+
 ## Review Focus
 
 The spec implies these inputs/failures; no other task tests them, so each line is pinned by a test in the owning task:
