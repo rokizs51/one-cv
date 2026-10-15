@@ -19,6 +19,19 @@
 - Anti-goals are rules: never export unaccepted suggestions; never drop or overwrite user material silently (cuts visible, profile text changes only via accept with provenance, reverts available).
 - Copy tone: plain language, no markdown/JSON exposed in the user path.
 - Tests run with `pnpm test` (Vitest). Route handlers are tested by importing the handler and calling it with `Request` objects and injected fakes. DB/RLS correctness is verified in the Task 3 manual step against the dev Supabase project.
+- Every UI task (5, 7, 11, 12, 13, 14) follows the UI Design section below.
+
+## UI Design (owner's reference — applies to all UI tasks)
+
+**Design direction: minimalist, fintech-UI inspired.** The goal is an experience that feels effortless, understandable, and quick to use.
+
+- Clean, functional, approachable; strong typography and generous whitespace.
+- Neutral color palette with high-contrast primary actions — exactly one accent color, reserved for the primary action of each screen (Sign up / Generate / Accept / Download PDF). Destructive actions (Reject, Delete account) use a distinct muted warning tone, never the accent.
+- Clear lists and easy-to-read summaries — here that means: dashboard version list, profile section lists, the JD chip list, and the MatchPanel keyword summary.
+- Subtle borders, restrained card usage, consistent spacing scale; mobile-first responsive layout with a polished desktop experience.
+- Avoid: excessive gradients, glassmorphism, glowing cards, generic SaaS-dashboard aesthetics.
+- Concrete interpretation (my call, keep if it fits the mood): Tailwind neutral scale (zinc/stone background, near-black text), one accent via CSS variable, system UI font stack, 4px spacing rhythm with generous section padding, no shadows except `shadow-sm` on the preview page surface. Exact tokens are the builder's, but the vibe is fixed: a calculator, not a carnival.
+- This applies to the app chrome only — the **rendered resume itself stays plain and ATS-clean** (Task 9 template), never decorated.
 
 ## Review Focus
 
