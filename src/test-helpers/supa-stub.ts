@@ -35,6 +35,8 @@ export interface ChainBuilder {
   insert(data: any): ChainBuilder;
   select(columns?: string): ChainBuilder;
   eq(column: string, value: any): ChainBuilder;
+  order(column: string, opts?: { ascending?: boolean }): ChainBuilder;
+  update(data: any): ChainBuilder;
   single(): Promise<SupaStubResponse>;
 }
 
@@ -73,28 +75,85 @@ export function createSupaStub(config: SupaStubConfig = {}): SupaStub {
     calls,
 
     from(table: string): ChainBuilder {
-      const builder: ChainBuilder = {
+      let lastInsertData: any = null;
+      let hasSelect = false;
+      const builder: any = {
         insert(data: any): ChainBuilder {
           calls.from.push({ table, method: 'insert', args: data });
+          lastInsertData = data;
           return builder;
         },
         select(columns?: string): ChainBuilder {
           calls.from.push({ table, method: 'select', args: columns });
+          hasSelect = true;
           return builder;
         },
         eq(column: string, value: any): ChainBuilder {
           calls.from.push({ table, method: 'eq', args: { column, value } });
           return builder;
         },
+        order(column: string, opts?: { ascending?: boolean }): ChainBuilder {
+          calls.from.push({ table, method: 'order', args: { column, opts } });
+          return builder;
+        },
+        update(data: any): ChainBuilder {
+          calls.from.push({ table, method: 'update', args: data });
+          return builder;
+        },
         async single(): Promise<SupaStubResponse> {
           calls.from.push({ table, method: 'single' });
-          // Return scripted response for this table
+          
+          // If there was an insert
+          if (lastInsertData) {
+            // Check if there's a configured response for this table
+            const tableConfig = fromConfig[table];
+            
+            // If there's a configured response and a select was called, use the configured ID
+            if (hasSelect && tableConfig && tableConfig.data) {
+              const result = {
+                data: {
+                  ...lastInsertData,
+                  id: tableConfig.data.id, // Use the configured ID
+                  created_at: tableConfig.data.created_at || new Date().toISOString(),
+                  updated_at: tableConfig.data.updated_at || new Date().toISOString(),
+                },
+                error: null,
+              };
+              lastInsertData = null;
+              return result;
+            }
+            
+            // Otherwise, return the inserted data with generated fields
+            const result = {
+              data: {
+                ...lastInsertData,
+                id: lastInsertData.id || 'generated-id',
+                created_at: lastInsertData.created_at || new Date().toISOString(),
+                updated_at: lastInsertData.updated_at || new Date().toISOString(),
+              },
+              error: null,
+            };
+            lastInsertData = null;
+            return result;
+          }
+          
+          // No insert, so this is a read operation - return configured response
           const tableConfig = fromConfig[table];
           if (tableConfig) {
             return tableConfig;
           }
+          
           // Default: no data, no error
           return { data: null, error: null };
+        },
+        // Make the builder thenable so it can be awaited
+        then(resolve: any, reject: any) {
+          const tableConfig = fromConfig[table];
+          if (tableConfig) {
+            resolve(tableConfig);
+          } else {
+            resolve({ data: null, error: null });
+          }
         },
       };
       return builder;
