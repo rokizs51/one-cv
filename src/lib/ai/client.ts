@@ -1,4 +1,4 @@
-import { generateObject, generateText } from 'ai';
+import { generateObject, generateText, JSONParseError, TypeValidationError, NoObjectGeneratedError } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { GenAI, EnhanceRequest, SummaryRequest } from './types';
@@ -6,6 +6,18 @@ import { JdNotParseableError } from './types';
 import { aiConfig } from './env';
 import { JdExtractionSchema } from '@/lib/domain/schemas';
 import type { JdExtraction, Suggestion } from '@/lib/domain/types';
+
+/**
+ * Checks if an error is a schema/parse error that should trigger retry.
+ * Only AI-SDK schema validation and JSON parse errors qualify.
+ */
+export function isSchemaParseError(error: unknown): boolean {
+  return (
+    error instanceof JSONParseError ||
+    error instanceof TypeValidationError ||
+    error instanceof NoObjectGeneratedError
+  );
+}
 
 /**
  * Schema for enhance response - array of suggestions.
@@ -56,7 +68,7 @@ Return a JSON object with these fields:
 
       let lastError: Error | null = null;
 
-      // Retry once on schema failure
+      // Retry once on schema/parse failure only
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const result = await generateObject({
@@ -67,8 +79,12 @@ Return a JSON object with these fields:
 
           return result.object;
         } catch (error) {
+          // Non-parse errors (network, auth, rate limit) re-throw immediately
+          if (!isSchemaParseError(error)) {
+            throw error;
+          }
           lastError = error as Error;
-          // Retry on schema/parse failures
+          // Retry only if this was the first attempt
           if (attempt === 0) {
             continue;
           }
@@ -114,25 +130,19 @@ Each suggestion must have:
 - newText: the enhanced bullet text
 - basis: brief explanation of what was changed and why`;
 
-      try {
-        const result = await generateObject({
-          model: anthropic(config.enhanceModel),
-          schema: EnhanceResponseSchema,
-          prompt,
-        });
+      const result = await generateObject({
+        model: anthropic(config.enhanceModel),
+        schema: EnhanceResponseSchema,
+        prompt,
+      });
 
-        return result.object.suggestions.map((s, i) => ({
-          id: `suggestion-${i}`,
-          targetItemId: s.itemId,
-          kind: 'bullet' as const,
-          newText: s.newText,
-          basis: s.basis,
-        }));
-      } catch (error) {
-        // Enhance failures return empty suggestions (non-critical)
-        console.warn('Enhance failed:', error);
-        return [];
-      }
+      return result.object.suggestions.map((s, i) => ({
+        id: `suggestion-${i}`,
+        targetItemId: s.itemId,
+        kind: 'bullet' as const,
+        newText: s.newText,
+        basis: s.basis,
+      }));
     },
 
     async composeSummary(req: SummaryRequest): Promise<string> {
@@ -163,19 +173,14 @@ Instructions:
 - Be concise and impactful
 - Do NOT invent information not present in the inputs`;
 
-      try {
-        const result = await generateText({
-          model: anthropic(config.enhanceModel),
-          prompt,
-        });
+      const result = await generateText({
+        model: anthropic(config.enhanceModel),
+        prompt,
+      });
 
-        // Ensure max 3 lines
-        const lines = result.text.split('\n').filter(Boolean).slice(0, 3);
-        return lines.join('\n');
-      } catch (error) {
-        console.warn('composeSummary failed:', error);
-        return 'Professional summary unavailable.';
-      }
+      // Ensure max 3 lines
+      const lines = result.text.split('\n').filter(Boolean).slice(0, 3);
+      return lines.join('\n');
     },
   };
 }

@@ -18,8 +18,7 @@ export function aiConfig() {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 
-  const monthlyCostCeilingUsd = Number(process.env.MONTHLY_COST_CEILING_USD) || 10;
-  const monthlyCostCeilingMicros = monthlyCostCeilingUsd * 1_000_000;
+  const monthlyCostCeilingMicros = Number(process.env.AI_MONTHLY_COST_MICROUSD_CEILING) || 2_000_000;
 
   return {
     provider,

@@ -7,7 +7,7 @@ describe('aiConfig', () => {
     delete process.env.AI_PROVIDER;
     delete process.env.AI_MODEL_EXTRACTION;
     delete process.env.AI_MODEL_ENHANCE;
-    delete process.env.MONTHLY_COST_CEILING_USD;
+    delete process.env.AI_MONTHLY_COST_MICROUSD_CEILING;
   });
 
   it('throws when required env vars are missing', () => {
@@ -33,19 +33,19 @@ describe('aiConfig', () => {
 
     const config = aiConfig();
 
-    // Default is $10/month = 10,000,000 micros
-    expect(config.monthlyCostCeilingMicros).toBe(10_000_000);
+    // Default is 2,000,000 micros (2 USD)
+    expect(config.monthlyCostCeilingMicros).toBe(2_000_000);
   });
 
-  it('respects MONTHLY_COST_CEILING_USD when set', () => {
+  it('respects AI_MONTHLY_COST_MICROUSD_CEILING when set', () => {
     process.env.AI_MODEL_EXTRACTION = 'claude-3-haiku-20240307';
     process.env.AI_MODEL_ENHANCE = 'claude-3-5-sonnet-20241022';
-    process.env.MONTHLY_COST_CEILING_USD = '25';
+    process.env.AI_MONTHLY_COST_MICROUSD_CEILING = '5000000';
 
     const config = aiConfig();
 
-    // 25 USD = 25,000,000 micros
-    expect(config.monthlyCostCeilingMicros).toBe(25_000_000);
+    // 5,000,000 micros (5 USD)
+    expect(config.monthlyCostCeilingMicros).toBe(5_000_000);
   });
 });
 
