@@ -179,14 +179,13 @@ export function orderSections(
 /**
  * Determines if a candidate is early career based on their profile items.
  * 
- * Early career if:
- * - All experience items ended within last 2 years (end > currentYear - 2), OR
- * - Any education item has graduation within 3 years of today
+ * Per plan: early career if:
+ * - NO experience item has (end absent OR end >= currentYear - 2), OR
+ * - Any education item has graduation (endYear) within 3 years of today
  * 
- * Not early career if:
- * - Any experience item has no end date (ongoing), OR
- * - Any experience item ended 2 or more years ago (end <= currentYear - 2)
- *   (unless recent graduation overrides this)
+ * Interpretation: ongoing or recent work = established career. Only when all work
+ * ended >2 years ago (stale) or no experience exists, treat as education-first ordering.
+ * Recent graduates override this — even with established work history, show education first.
  * 
  * This is a simple deterministic rule for section ordering.
  */
@@ -196,23 +195,24 @@ export function isEarlyCareer(items: ProfileItem[]): boolean {
   const experienceItems = items.filter((item) => item.type === 'experience');
   const educationItems = items.filter((item) => item.type === 'education');
 
-  // Check if all experience ended within last 2 years (strictly: end > currentYear - 2)
-  // If no experience items, this is vacuously true
-  const allExperienceRecent = experienceItems.every((item) => {
+  // Check if NO experience item has (end absent OR end >= currentYear - 2)
+  // i.e., all experience items have: end present AND end < currentYear - 2
+  // If no experience items, vacuously true → early career
+  const allExperienceStale = experienceItems.every((item) => {
     const end = item.payload.end;
-    // No end date means ongoing, so not early career
+    // No end date means ongoing → not early career (this item violates the rule)
     if (!end) return false;
     
     const endYear = typeof end === 'string' ? parseInt(end, 10) : end;
     if (isNaN(endYear)) return false;
     
-    // End year > current year - 2 means ended within last 2 years
-    return endYear > currentYear - 2;
+    // End year < current year - 2 means ended more than 2 years ago (stale)
+    return endYear < currentYear - 2;
   });
 
-  // Check if any education graduated within 3 years
+  // Check if any education graduated within 3 years (endYear in education payload)
   const recentGraduate = educationItems.some((item) => {
-    const gradYear = item.payload.graduation_year;
+    const gradYear = item.payload.endYear;
     if (!gradYear) return false;
     
     const year = typeof gradYear === 'string' ? parseInt(gradYear, 10) : gradYear;
@@ -222,6 +222,6 @@ export function isEarlyCareer(items: ProfileItem[]): boolean {
     return year >= currentYear - 3;
   });
 
-  // Early career if all experience is recent OR recent graduation
-  return allExperienceRecent || recentGraduate;
+  // Early career if all experience is stale (or none exists) OR recent graduation
+  return allExperienceStale || recentGraduate;
 }

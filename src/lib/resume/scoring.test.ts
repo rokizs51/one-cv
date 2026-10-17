@@ -152,7 +152,7 @@ describe('keywordScore', () => {
     expect(scored.matchedKeywords).toContain('PostgreSQL');
   });
 
-  it('deduplicates matchedKeywords', () => {
+  it('deduplicates matchedKeywords within a single list', () => {
     const jd: JdExtraction = {
       requiredSkills: ['Kubernetes'],
       preferredSkills: [],
@@ -169,6 +169,28 @@ describe('keywordScore', () => {
 
     const scored = keywordScore(item, jd);
     expect(scored.matchedKeywords.filter((k) => k === 'Kubernetes')).toHaveLength(1);
+  });
+
+  it('deduplicates matchedKeywords across JD lists and sums weights', () => {
+    const jd: JdExtraction = {
+      requiredSkills: ['Kubernetes'],
+      preferredSkills: [],
+      keywords: ['Kubernetes'], // same keyword in both lists
+      seniority: 'mid',
+      domain: 'engineering',
+      tools: [],
+      responsibilities: [],
+    };
+
+    const item = makeItem({
+      canonicalText: 'Deployed applications with Kubernetes',
+    });
+
+    const scored = keywordScore(item, jd);
+    // Should appear once in matchedKeywords despite being in two lists
+    expect(scored.matchedKeywords.filter((k) => k === 'Kubernetes')).toHaveLength(1);
+    // Score should reflect both weights: 3 (requiredSkills) + 1 (keywords) = 4
+    expect(scored.score).toBe(4);
   });
 
   it('combines scores from multiple keywords', () => {
@@ -298,7 +320,7 @@ describe('isEarlyCareer', () => {
     expect(isEarlyCareer(items)).toBe(true);
   });
 
-  it('returns true when all experience items have end within last 2 years', () => {
+  it('returns false when experience ended recently (last year)', () => {
     const currentYear = new Date().getFullYear();
     const items: ProfileItem[] = [
       makeItem({
@@ -308,7 +330,7 @@ describe('isEarlyCareer', () => {
       }),
     ];
 
-    expect(isEarlyCareer(items)).toBe(true);
+    expect(isEarlyCareer(items)).toBe(false);
   });
 
   it('returns false when an experience item has no end date (ongoing)', () => {
@@ -336,13 +358,26 @@ describe('isEarlyCareer', () => {
     expect(isEarlyCareer(items)).toBe(false);
   });
 
+  it('returns true when all experience ended more than 2 years ago', () => {
+    const currentYear = new Date().getFullYear();
+    const items: ProfileItem[] = [
+      makeItem({
+        type: 'experience',
+        id: '1',
+        payload: { end: `${currentYear - 3}` }, // ended 3 years ago
+      }),
+    ];
+
+    expect(isEarlyCareer(items)).toBe(true);
+  });
+
   it('returns true when graduation within 3 years', () => {
     const currentYear = new Date().getFullYear();
     const items: ProfileItem[] = [
       makeItem({
         type: 'education',
         id: '1',
-        payload: { graduation_year: `${currentYear - 1}` }, // graduated last year
+        payload: { endYear: currentYear - 1 }, // graduated last year
       }),
       makeItem({
         type: 'experience',
@@ -360,7 +395,7 @@ describe('isEarlyCareer', () => {
       makeItem({
         type: 'education',
         id: '1',
-        payload: { graduation_year: `${currentYear - 5}` }, // graduated 5 years ago
+        payload: { endYear: currentYear - 5 }, // graduated 5 years ago
       }),
       makeItem({
         type: 'experience',
