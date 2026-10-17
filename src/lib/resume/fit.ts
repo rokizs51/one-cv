@@ -1,4 +1,4 @@
-import type { GenMode, JdExtraction, ProfileItem } from '@/lib/domain/types';
+import type { JdExtraction, ProfileItem } from '@/lib/domain/types';
 import { keywordScore, type ScoredItem } from './scoring';
 import type { FitResultSnapshot } from './fit-types';
 
@@ -8,9 +8,6 @@ export type { FitResultSnapshot } from './fit-types';
 // Constants per brief
 export const PAGE_UNITS: Record<1 | 2, number> = { 1: 78, 2: 156 };
 export const MIN_SCORE = 2;
-// Line budget reserved for the composed summary (rendered doc.summary, never
-// scored): the prompt caps it at 3 lines; +1 slack for wrapping.
-export const ENHANCE_SUMMARY_RESERVE_UNITS = 4;
 
 // Character width at 10pt on A4 with margins (~450pt usable / 7pt per char)
 const CHARS_PER_LINE = 64;
@@ -27,25 +24,31 @@ export interface FitResult {
 }
 
 /**
- * Estimates the number of wrapped lines a ProfileItem will occupy.
- * Uses canonicalText length divided by chars-per-line heuristic.
+ * Wrapped-line estimate for raw text (the doc.summary channel is plain text
+ * that never exists as a ProfileItem during refit).
  */
-export function estimateLines(item: ProfileItem, width?: number): number {
+export function estimateTextLines(text: string, width?: number): number {
   const charsPerLine = width ? Math.floor(width / 7) : CHARS_PER_LINE;
-  const text = item.canonicalText;
   if (!text) return 1;
-  
-  // Split by newlines and count wrapped lines per paragraph
+
   const paragraphs = text.split('\n');
   let lines = 0;
   for (const p of paragraphs) {
     if (p.length === 0) {
-      lines += 1; // empty line counts as 1
+      lines += 1;
     } else {
       lines += Math.max(1, Math.ceil(p.length / charsPerLine));
     }
   }
   return lines;
+}
+
+/**
+ * Estimates the number of wrapped lines a ProfileItem will occupy.
+ * Uses canonicalText length divided by chars-per-line heuristic.
+ */
+export function estimateLines(item: ProfileItem, width?: number): number {
+  return estimateTextLines(item.canonicalText, width);
 }
 
 /**
@@ -122,25 +125,27 @@ export function fitToPage(scored: ScoredItem[], pageLimit: 1 | 2, reservedUnits:
 }
 
 /**
- * Scores a profile's items against a JD and fits them to the page, applying
- * the SAME summary-reserve rule the generation pipeline uses. Shared by
- * generateResume (Task 10) and the live-refit route (Task 13) so the two can
- * never drift on how much page space the summary consumes.
+ * Scores a profile's items against a JD and fits them to the page. Shared by
+ * generateResume (Task 10), the live-refit route (Task 13), and disposition
+ * recomputation, so the three can never drift on page-space accounting.
  *
  * - career_snapshot is excluded from scoring (it renders as doc.summary,
  *   never a section) — this keeps a pinned snapshot from being force-kept
  *   into sections and stops it double-counting page space.
- * - reserveUnits: as-is → the snapshot's own wrapped lines; enhance → the
- *   ≤3-line composed summary budget; no snapshot → 0 (never fabricated).
+ * - `summaryText` is the text ACTUALLY rendered as doc.summary right now
+ *   (pre-disposition: the snapshot verbatim in both modes; post-accept: the
+ *   composed/edited headline). Its lines are held back from the budget —
+ *   a mode-based constant under-counted long snapshots (they silently
+ *   pushed the CV to page 2 with no wont_fit signal).
  *
- * `textOverrides` (itemId → edited text) let the refit route score proposed
- * edits before they're written to the profile.
+ * `textOverrides` (itemId → text) score proposed/current doc text ahead of
+ * the stored canonicalText, so the panel matches the page a user sees.
  */
 export function buildFit(
   items: ProfileItem[],
   jd: JdExtraction,
   pageLimit: 1 | 2,
-  mode: GenMode,
+  summaryText: string | null,
   textOverrides?: Record<string, string>
 ): { scored: ScoredItem[]; fit: FitResult; snapshotItem: ProfileItem | null } {
   const override = (item: ProfileItem): ProfileItem =>
@@ -155,11 +160,7 @@ export function buildFit(
     .filter((item) => item.type !== 'career_snapshot')
     .map((item) => keywordScore(override(item), jd));
 
-  const reserveUnits = !snapshotItem
-    ? 0
-    : mode === 'as_is'
-      ? estimateLines(snapshotItem)
-      : ENHANCE_SUMMARY_RESERVE_UNITS;
+  const reserveUnits = summaryText ? estimateTextLines(summaryText) : 0;
 
   const fit = fitToPage(scored, pageLimit, reserveUnits);
   return { scored, fit, snapshotItem };

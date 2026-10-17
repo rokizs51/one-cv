@@ -5,17 +5,26 @@ import { getSessionUser } from '@/lib/auth/session';
 import { getResume, updateResumeFields } from '@/lib/db/resumes';
 import { getJd } from '@/lib/db/jds';
 import { getItem, acceptText } from '@/lib/db/items';
-import type { ResumeDoc, SuggestionState } from '@/lib/domain/types';
+import { refitFromDoc } from '@/lib/resume/refit';
+import type { JdExtraction, ResumeDoc, SuggestionState } from '@/lib/domain/types';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const TERMINAL = ['accepted', 'rejected', 'edited'] as const;
 
 async function loadWithExtraction(supa: Awaited<ReturnType<typeof createRouteClient>>, resumeId: string) {
+  // The resume itself is critical (errors propagate → 500); the extraction is
+  // advisory panel data — a JD read failure must not 500 an intact CV.
   const resume = await getResume(supa, resumeId);
   if (!resume) return null;
-  const jd = await getJd(supa, resume.jdId);
-  return { resume, extraction: jd?.extraction ?? null };
+  let extraction = null as JdExtraction | null;
+  try {
+    const jd = await getJd(supa, resume.jdId);
+    extraction = jd?.extraction ?? null;
+  } catch {
+    extraction = null;
+  }
+  return { resume, extraction };
 }
 
 export async function GET(
@@ -216,9 +225,14 @@ export async function PATCH(
 
         // Compounding asset: accepted bullet wording flows back into the
         // profile (original preserved under provenance, one-click revert).
+        // The canonicalText guard makes accept near-idempotent: if the
+        // resume-write below fails after this call, the still-pending retry
+        // lands the doc change WITHOUT double-compounding the provenance
+        // chain (a duplicated {text:A, original:A} entry would silently
+        // defeat the promised one-click revert).
         if (status === 'accepted' && sug.kind === 'bullet') {
           const profileItem = await getItem(supabase, sug.targetItemId);
-          if (profileItem) {
+          if (profileItem && profileItem.canonicalText !== applied) {
             await acceptText(supabase, sug.targetItemId, profileItem, applied, id);
           }
         }
@@ -234,6 +248,21 @@ export async function PATCH(
         { error: { code: 'invalid_request', message: 'Nothing to update was sent' } },
         { status: 400 }
       );
+    }
+
+    // Spec: "every edit re-runs the fit computation and updates the cut list
+    // live." When a disposition changes the doc or the page limit flips,
+    // recompute fit against the doc as it now reads and persist it, so the
+    // stored snapshot, the banner, and a later reload all agree with the PDF.
+    // Advisory: if the JD is unreadable we keep the prior stored fit rather
+    // than failing the disposition.
+    if (patch.doc !== undefined || patch.pageLimit !== undefined) {
+      const refit = await refitFromDoc(supabase, user.id, {
+        doc: (patch.doc as ResumeDoc) ?? resume.doc,
+        jdId: resume.jdId,
+        pageLimit: (patch.pageLimit as 1 | 2) ?? resume.pageLimit,
+      });
+      if (refit) patch.fit = refit.fit;
     }
 
     await updateResumeFields(supabase, id, patch);

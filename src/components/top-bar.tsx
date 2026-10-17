@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import SignOutButton from './sign-out-button';
 
+const linkCls =
+  'text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100';
+
 /**
  * Shared top bar for authenticated pages (dashboard, profile, generate).
  * Wordmark links home; sign-out is the quiet right-hand action.
@@ -15,7 +18,12 @@ export default function TopBar() {
         >
           ResumeTailor
         </Link>
-        <SignOutButton />
+        <nav className="flex items-center gap-5">
+          <Link href="/settings" className={linkCls}>
+            Settings
+          </Link>
+          <SignOutButton />
+        </nav>
       </div>
     </header>
   );

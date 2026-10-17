@@ -28,6 +28,7 @@ export interface SupaStubCalls {
 export interface SupaStub {
   from(table: string): ChainBuilder;
   rpc(fn: string, params: any): Promise<SupaStubResponse>;
+  auth: { signOut(): Promise<{ error: null }> };
   calls: SupaStubCalls;
 }
 
@@ -37,6 +38,7 @@ export interface ChainBuilder {
   eq(column: string, value: any): ChainBuilder;
   order(column: string, opts?: { ascending?: boolean }): ChainBuilder;
   update(data: any): ChainBuilder;
+  delete(): ChainBuilder;
   single(): Promise<SupaStubResponse>;
 }
 
@@ -100,6 +102,10 @@ export function createSupaStub(config: SupaStubConfig = {}): SupaStub {
           calls.from.push({ table, method: 'update', args: data });
           return builder;
         },
+        delete(): ChainBuilder {
+          calls.from.push({ table, method: 'delete', args: undefined });
+          return builder;
+        },
         async single(): Promise<SupaStubResponse> {
           calls.from.push({ table, method: 'single' });
           
@@ -157,6 +163,13 @@ export function createSupaStub(config: SupaStubConfig = {}): SupaStub {
         },
       };
       return builder;
+    },
+
+    // Minimal auth namespace for routes that sign the session out.
+    auth: {
+      async signOut(): Promise<{ error: null }> {
+        return { error: null };
+      },
     },
 
     async rpc(fn: string, params: any): Promise<SupaStubResponse> {

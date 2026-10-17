@@ -39,7 +39,7 @@ export default function ResumeEditor({
           if (item.sourceItemId === itemId) return item.text;
         }
       }
-      return resume.doc.summary && itemId === 'summary' ? resume.doc.summary : '';
+      return '';
     },
     [resume]
   );
@@ -75,10 +75,26 @@ export default function ResumeEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const resync = useCallback(async () => {
+    const res = await fetch(`/api/resumes/${resume.id}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.resume) {
+        setResume(data.resume);
+        setExtraction(data.extraction ?? null);
+        await refit(data.resume);
+      }
+    }
+  }, [resume.id, refit]);
+
   const applyResponse = async (res: Response): Promise<void> => {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       setError(data?.error?.message || 'That change did not go through. Please try again.');
+      // 409 already_dispositioned (lost race / stale tab) means the SERVER has
+      // newer truth than this client — pull it so the "N waiting" badge and the
+      // Download gate stop showing a pending state that no longer exists.
+      if (res.status === 409) await resync();
       return;
     }
     setError('');
@@ -109,13 +125,13 @@ export default function ResumeEditor({
     }
   };
 
-  const useTwoPages = async () => {
+  const changePageLimit = async (pageLimit: 1 | 2) => {
     setBusy(true);
     try {
       const res = await fetch(`/api/resumes/${resume.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pageLimit: 2 }),
+        body: JSON.stringify({ pageLimit }),
       });
       await applyResponse(res);
     } catch {
@@ -155,20 +171,35 @@ export default function ResumeEditor({
             role="alert"
             className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
           >
-            <p className="font-medium">Pinned content alone is more than one page.</p>
-            <p className="mt-1">
-              Nothing was dropped to make it fit — un-pin something on your profile, or switch to two pages.
+            <p className="font-medium">
+              Pinned content alone is more than {resume.pageLimit === 2 ? 'two pages' : 'one page'}.
             </p>
-            {resume.pageLimit === 1 && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={useTwoPages}
-                className="mt-3 rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
-              >
-                Use two pages
-              </button>
-            )}
+            <p className="mt-1">
+              Nothing was dropped to make it fit — un-pin something on your profile
+              {resume.pageLimit === 1 ? ', or switch to two pages.' : '.'}
+            </p>
+            <div className="mt-3 flex gap-2">
+              {resume.pageLimit === 1 && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => changePageLimit(2)}
+                  className="rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                >
+                  Use two pages
+                </button>
+              )}
+              {resume.pageLimit === 2 && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => changePageLimit(1)}
+                  className="rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                >
+                  Back to one page
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

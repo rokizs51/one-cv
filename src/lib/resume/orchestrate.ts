@@ -109,13 +109,16 @@ export async function generateResume(
   }
 
   // 4-7. The shared scoring+reserve+fit pipeline (buildFit, also used by the
-  // live-refit route in Task 13 so the two can never drift): career_snapshot
-  // excluded from scoring, summary page-space reserved, fit to budget.
-  const { scored, fit: fitResult, snapshotItem } = buildFit(
+  // live-refit + disposition recomputation so they can never drift):
+  // career_snapshot excluded from scoring, and the page-space of the summary
+  // text that ACTUALLY renders (pre-disposition: the snapshot verbatim in
+  // both modes) reserved from the budget.
+  const snapshotItem = items.find((item) => item.type === 'career_snapshot') ?? null;
+  const { scored, fit: fitResult } = buildFit(
     items,
     jd.extraction,
     pageLimit,
-    mode
+    snapshotItem?.canonicalText ?? null
   );
 
   // 5b. Determine early career (deps.now-injected for determinism)

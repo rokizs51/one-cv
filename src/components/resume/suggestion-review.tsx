@@ -52,9 +52,16 @@ export default function SuggestionReview({
               {isSummary ? 'Headline summary' : 'Bullet rewrite'}
             </p>
 
-            <p className="mt-2 text-sm leading-6 text-zinc-500 line-through decoration-zinc-300 dark:text-zinc-500 dark:decoration-zinc-700">
-              {originalText}
-            </p>
+            {/* The struck-through line is the CURRENT doc text: meaningful
+                while pending (what the suggestion would replace) and for a
+                reject (what stands). For accepted/edited rows the doc holds
+                the applied wording — showing it struck-through would lie —
+                so the outcome line below carries the text instead. */}
+            {(status === 'pending' || status === 'rejected') && (
+              <p className="mt-2 text-sm leading-6 text-zinc-500 line-through decoration-zinc-300 dark:text-zinc-500 dark:decoration-zinc-700">
+                {originalText}
+              </p>
+            )}
 
             {status === 'pending' ? (
               <>

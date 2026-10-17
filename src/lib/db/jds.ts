@@ -68,3 +68,27 @@ export async function getJd(
     createdAt: data.created_at as string,
   };
 }
+
+/**
+ * List all job descriptions owned by a user, newest first.
+ */
+export async function listJds(
+  supa: SupabaseClient,
+  owner: string
+): Promise<JobDescription[]> {
+  const { data, error } = await supa
+    .from('job_descriptions')
+    .select('*')
+    .eq('owner', owner)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    owner: row.owner as string,
+    raw: row.raw as string,
+    extraction: row.extraction as JdExtraction,
+    createdAt: row.created_at as string,
+  }));
+}

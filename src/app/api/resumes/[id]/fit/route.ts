@@ -3,19 +3,17 @@ import { cookies } from 'next/headers';
 import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { getResume } from '@/lib/db/resumes';
-import { getJd } from '@/lib/db/jds';
-import { getOrCreateProfile } from '@/lib/db/profiles';
-import { listItems } from '@/lib/db/items';
-import { buildFit, snapshotOf } from '@/lib/resume/fit';
+import { refitFromDoc } from '@/lib/resume/refit';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * POST /api/resumes/:id/fit  { userEdits?: {itemId: text}, pageLimit?: 1|2 }
- * Live recompute (Review Focus 3): re-scores and re-fits with the caller's
- * pending text edits applied, WITHOUT writing anything. Pinned items are
- * never dropped — when they alone exceed the page (with the summary's
- * reserved lines counted), the response says so honestly via
+ * Advisory live recompute (Review Focus 3): re-scores and re-fits with the
+ * caller's pending text edits applied, WITHOUT writing anything — persisted
+ * recomputation happens inside PATCH dispositions. Pinned items are never
+ * dropped; when they alone exceed the page (with the summary's reserved
+ * lines counted), the response says so honestly via
  * { overflow: true, code: 'wont_fit' } and the UI offers un-pin / 2 pages.
  */
 export async function POST(
@@ -51,7 +49,7 @@ export async function POST(
         ? Object.fromEntries(
             Object.entries(body.userEdits as Record<string, unknown>)
               .filter(([, v]) => typeof v === 'string')
-                .map(([k, v]) => [k, v as string])
+              .map(([k, v]) => [k, v as string])
           )
         : {};
 
@@ -67,13 +65,13 @@ export async function POST(
     }
 
     const pageLimit = body.pageLimit === 2 ? 2 : body.pageLimit === 1 ? 1 : resume.pageLimit;
-
-    const profile = await getOrCreateProfile(supabase, user.id);
-    const [items, jd] = await Promise.all([
-      listItems(supabase, profile.id),
-      getJd(supabase, resume.jdId),
-    ]);
-    if (!jd) {
+    const outcome = await refitFromDoc(supabase, user.id, {
+      doc: resume.doc,
+      jdId: resume.jdId,
+      pageLimit,
+      userEdits,
+    });
+    if (!outcome) {
       return NextResponse.json(
         {
           error: {
@@ -85,19 +83,12 @@ export async function POST(
       );
     }
 
-    const { fit } = buildFit(items, jd.extraction, pageLimit, resume.mode, userEdits);
-    const cuts = fit.cuts.map((c) => ({
-      itemId: c.item.item.id,
-      reason: c.reason,
-      text: c.item.item.canonicalText,
-    }));
-
     return NextResponse.json(
       {
-        fit: snapshotOf(fit),
-        cuts,
-        overflow: fit.overflow,
-        ...(fit.overflow ? { code: 'wont_fit' } : {}),
+        fit: outcome.fit,
+        cuts: outcome.cuts,
+        overflow: outcome.overflow,
+        ...(outcome.overflow ? { code: 'wont_fit' } : {}),
       },
       { status: 200 }
     );

@@ -4,6 +4,7 @@ import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { getResume } from '@/lib/db/resumes';
 import { getJd } from '@/lib/db/jds';
+import type { JdExtraction } from '@/lib/domain/types';
 import TopBar from '@/components/top-bar';
 import ResumeEditor from '@/components/resume/resume-editor';
 
@@ -24,7 +25,14 @@ export default async function ResumePage({ params }: { params: Promise<{ id: str
   const supabase = await createRouteClient(cookieStore);
   const resume = await getResume(supabase, id);
   if (!resume) notFound();
-  const jd = await getJd(supabase, resume.jdId);
+  // Advisory: a JD read failure hides the match panel, never the CV.
+  let extraction: JdExtraction | null = null;
+  try {
+    const jd = await getJd(supabase, resume.jdId);
+    extraction = jd?.extraction ?? null;
+  } catch {
+    extraction = null;
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -32,7 +40,7 @@ export default async function ResumePage({ params }: { params: Promise<{ id: str
       <main className="px-4 py-10">
         <div className="mx-auto w-full max-w-5xl">
           <h1 className="sr-only">Resume preview</h1>
-          <ResumeEditor resume={resume} extraction={jd?.extraction ?? null} />
+          <ResumeEditor resume={resume} extraction={extraction} />
         </div>
       </main>
     </div>
