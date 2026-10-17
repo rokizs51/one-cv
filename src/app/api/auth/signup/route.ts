@@ -54,9 +54,13 @@ export async function POST(request: Request) {
     });
 
     if (signUpError) {
-      // Check if user already exists
-      if (signUpError.message?.includes('already registered') || 
-          signUpError.message?.includes('User already registered')) {
+      // Check if user already exists - primary check via status code (422 = Unprocessable Entity)
+      // Secondary check via message text as belt-and-braces fallback
+      const isUserExists = signUpError.status === 422 || 
+        signUpError.message?.includes('already registered') || 
+        signUpError.message?.includes('User already registered');
+      
+      if (isUserExists) {
         return NextResponse.json(
           { error: { code: 'user_exists', message: 'A user with this email already exists' } },
           { status: 409 }
