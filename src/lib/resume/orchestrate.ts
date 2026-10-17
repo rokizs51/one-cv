@@ -17,9 +17,8 @@ import { listItems } from '@/lib/db/items';
 import { getJd } from '@/lib/db/jds';
 import { saveResume } from '@/lib/db/resumes';
 import { currentUsage, recordGeneration, GENERATIONS_CAP, globalLlmCost, monthKey } from '@/lib/db/quota';
-import { keywordScore, isEarlyCareer, orderSections } from '@/lib/resume/scoring';
-import type { ScoredItem } from '@/lib/resume/scoring';
-import { estimateLines, fitToPage, snapshotOf } from '@/lib/resume/fit';
+import { isEarlyCareer, orderSections } from '@/lib/resume/scoring';
+import { buildFit, snapshotOf } from '@/lib/resume/fit';
 import { estimateCostMicros } from '@/lib/ai/env';
 
 export interface OrchestrateDeps {
@@ -41,10 +40,6 @@ export const ESTIMATE_PROMPT_OVERHEAD_TOKENS = 800; // system + JD context + ins
 export const ESTIMATE_CHARS_PER_TOKEN = 4;
 export const ESTIMATE_OUTPUT_TOKENS_PER_BULLET = 80; // rewrite + basis per bullet
 export const ESTIMATE_SUMMARY_OUTPUT_TOKENS = 150; // composed headline (≤3 lines)
-
-// Line budget reserved for the composed summary (rendered doc.summary, never
-// scored): the prompt caps it at 3 lines; +1 slack for wrapping.
-export const ENHANCE_SUMMARY_RESERVE_UNITS = 4;
 
 export function estimateEnhanceTokens(textChars: number, bulletCount: number): {
   input: number;
@@ -113,35 +108,21 @@ export async function generateResume(
     }
   }
 
-  // 4. Score items, EXCLUDING career_snapshot. The snapshot is rendered as the
-  // doc's top-level summary (doc.summary), never as a section item. Filtering
-  // here — not just at doc build — keeps a *pinned* snapshot from being forced
-  // back into sections by the fit engine, scopes enhance/facts to real bullets,
-  // and stops the snapshot from double-counting page space.
-  const scored: ScoredItem[] = items
-    .filter((item) => item.type !== 'career_snapshot')
-    .map((item) => keywordScore(item, jd.extraction));
+  // 4-7. The shared scoring+reserve+fit pipeline (buildFit, also used by the
+  // live-refit route in Task 13 so the two can never drift): career_snapshot
+  // excluded from scoring, summary page-space reserved, fit to budget.
+  const { scored, fit: fitResult, snapshotItem } = buildFit(
+    items,
+    jd.extraction,
+    pageLimit,
+    mode
+  );
 
-  // Single lookup shared by summary composition and the page-budget reserve.
-  const snapshotItem = items.find((item) => item.type === 'career_snapshot') ?? null;
-
-  // 5. Determine early career (deps.now-injected for determinism)
+  // 5b. Determine early career (deps.now-injected for determinism)
   const earlyCareer = isEarlyCareer(items, now);
 
-  // 6. Order sections
+  // 6b. Order sections
   const sections = orderSections(scored, { earlyCareer });
-
-  // 7. Fit to page, reserving budget for the rendered summary. The snapshot
-  // is excluded from scoring (it renders as doc.summary, never a section), so
-  // without this reservation its lines would go uncounted and a "fitting"
-  // doc would silently spill onto page 2.
-  const summaryReserveUnits =
-    snapshotItem && mode === 'as_is'
-      ? estimateLines(snapshotItem)
-      : mode === 'enhance'
-        ? ENHANCE_SUMMARY_RESERVE_UNITS
-        : 0;
-  const fitResult = fitToPage(scored, pageLimit, summaryReserveUnits);
 
   // 8. Build ResumeDoc
   const header: ResumeHeader = {
@@ -164,24 +145,42 @@ export async function generateResume(
       summary = snapshotItem.canonicalText;
     }
   } else {
-    // enhance mode: call AI to compose summary
+    // Enhance mode: the doc carries ONLY original wording until a suggestion
+    // is dispositioned (plan: suggestions "never part of doc until
+    // dispositioned"). The composed headline therefore enters as a pending
+    // summary suggestion, and doc.summary stays the snapshot's own text.
+    // No snapshot → the summary is skipped, never fabricated (Review Focus 1)
+    // — the composed text is derived from it, so composition is skipped too.
     const chosenItems = fitResult.chosen.map((s) => s.item);
-    const snapshotText = snapshotItem?.canonicalText || '';
+    const snapshotText = snapshotItem?.canonicalText ?? '';
+    summary = snapshotItem ? snapshotText : null;
     const facts = chosenItems.map((item) => item.canonicalText);
 
-    summary = await ai.composeSummary({
-      jd: jd.extraction,
-      snapshot: snapshotText,
-      facts,
-    });
+    const allSuggestions: Suggestion[] = [];
+
+    if (snapshotItem) {
+      const composed = await ai.composeSummary({
+        jd: jd.extraction,
+        snapshot: snapshotText,
+        facts,
+      });
+      allSuggestions.push({
+        id: 'summary-composed',
+        targetItemId: snapshotItem.id,
+        kind: 'summary',
+        newText: composed,
+        basis: 'Headline composed from your career summary and this job — the summary itself is untouched.',
+      });
+    }
 
     // Call ai.enhance for chosen bullets
     const enhanceSuggestions = await ai.enhance({
       jd: jd.extraction,
       items: chosenItems.map((item) => ({ itemId: item.id, text: item.canonicalText })),
     });
+    allSuggestions.push(...enhanceSuggestions);
 
-    for (const sug of enhanceSuggestions) {
+    for (const sug of allSuggestions) {
       suggestions.push(sug);
       statuses.push({
         suggestion: sug,

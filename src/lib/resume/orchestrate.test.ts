@@ -300,6 +300,30 @@ describe('orchestrate.ts', () => {
 
       expect(ai.calls.enhance.length).toBe(1);
       expect(ai.calls.composeSummary.length).toBe(1);
+      // Doc carries ONLY original wording pre-disposition; the composed text
+      // exists solely as a pending summary suggestion (plan Task 10/13 rule).
+      expect(result.doc.summary).toBe('Original snapshot');
+      const summaryState = result.statuses.find((s) => s.suggestion.kind === 'summary');
+      expect(summaryState).toBeDefined();
+      expect(summaryState?.status).toBe('pending');
+      expect(summaryState?.suggestion.newText).toBe('Enhanced summary');
+    });
+
+    it('enhance with no career_snapshot: summary skipped, never fabricated', async () => {
+      const ai = makeFakeGenAI();
+      const items = [
+        makeItem({ id: 'item-1', type: 'experience', canonicalText: 'Built React apps with TypeScript' }),
+      ];
+
+      const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+      const deps = makeDeps({ supa, ai });
+
+      const result = await generateResume(deps, { jdId: 'jd-1', mode: 'enhance', pageLimit: 1 });
+
+      expect(ai.calls.composeSummary.length).toBe(0);
+      expect(ai.calls.enhance.length).toBe(1);
+      expect(result.doc.summary).toBeNull();
+      expect(result.statuses.some((s) => s.suggestion.kind === 'summary')).toBe(false);
     });
 
     it('stores suggestions with status pending', async () => {

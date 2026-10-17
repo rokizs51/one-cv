@@ -65,6 +65,24 @@ function matchesKeyword(text: string, keyword: string): boolean {
 }
 
 /**
+ * Which JD keywords a piece of text hits — the same word-boundary matcher
+ * keywordScore uses, exposed for the "why this matched" panel so the UI and
+ * the scoring can never disagree about what matched.
+ */
+export function matchedKeywords(text: string, jd: JdExtraction): string[] {
+  const ordered = [...jd.requiredSkills, ...jd.tools, ...jd.preferredSkills, ...jd.keywords];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const kw of ordered) {
+    if (!seen.has(kw) && matchesKeyword(text, kw)) {
+      seen.add(kw);
+      out.push(kw);
+    }
+  }
+  return out;
+}
+
+/**
  * Scores a ProfileItem against a JdExtraction based on keyword matches.
  * - requiredSkills: weight 3
  * - tools: weight 2

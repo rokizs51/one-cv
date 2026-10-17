@@ -52,7 +52,13 @@ export async function getJd(
     .eq('id', jdId)
     .single();
 
-  if (error || !data) return null;
+  if (error) {
+    // Absent/unauthorized row → null; database errors must not masquerade
+    // as "not found" (same discipline as getResume).
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+  if (!data) return null;
 
   return {
     id: data.id as string,

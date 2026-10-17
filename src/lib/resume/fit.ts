@@ -1,5 +1,5 @@
-import type { ProfileItem } from '@/lib/domain/types';
-import type { ScoredItem } from './scoring';
+import type { GenMode, JdExtraction, ProfileItem } from '@/lib/domain/types';
+import { keywordScore, type ScoredItem } from './scoring';
 import type { FitResultSnapshot } from './fit-types';
 
 // Re-export FitResultSnapshot for Task 4 compatibility
@@ -8,6 +8,9 @@ export type { FitResultSnapshot } from './fit-types';
 // Constants per brief
 export const PAGE_UNITS: Record<1 | 2, number> = { 1: 78, 2: 156 };
 export const MIN_SCORE = 2;
+// Line budget reserved for the composed summary (rendered doc.summary, never
+// scored): the prompt caps it at 3 lines; +1 slack for wrapping.
+export const ENHANCE_SUMMARY_RESERVE_UNITS = 4;
 
 // Character width at 10pt on A4 with margins (~450pt usable / 7pt per char)
 const CHARS_PER_LINE = 64;
@@ -116,6 +119,50 @@ export function fitToPage(scored: ScoredItem[], pageLimit: 1 | 2, reservedUnits:
   }
   
   return { chosen, cuts, overflow };
+}
+
+/**
+ * Scores a profile's items against a JD and fits them to the page, applying
+ * the SAME summary-reserve rule the generation pipeline uses. Shared by
+ * generateResume (Task 10) and the live-refit route (Task 13) so the two can
+ * never drift on how much page space the summary consumes.
+ *
+ * - career_snapshot is excluded from scoring (it renders as doc.summary,
+ *   never a section) — this keeps a pinned snapshot from being force-kept
+ *   into sections and stops it double-counting page space.
+ * - reserveUnits: as-is → the snapshot's own wrapped lines; enhance → the
+ *   ≤3-line composed summary budget; no snapshot → 0 (never fabricated).
+ *
+ * `textOverrides` (itemId → edited text) let the refit route score proposed
+ * edits before they're written to the profile.
+ */
+export function buildFit(
+  items: ProfileItem[],
+  jd: JdExtraction,
+  pageLimit: 1 | 2,
+  mode: GenMode,
+  textOverrides?: Record<string, string>
+): { scored: ScoredItem[]; fit: FitResult; snapshotItem: ProfileItem | null } {
+  const override = (item: ProfileItem): ProfileItem =>
+    textOverrides && textOverrides[item.id] !== undefined
+      ? { ...item, canonicalText: textOverrides[item.id] }
+      : item;
+
+  const snapshotItem =
+    items.find((item) => item.type === 'career_snapshot') ?? null;
+
+  const scored = items
+    .filter((item) => item.type !== 'career_snapshot')
+    .map((item) => keywordScore(override(item), jd));
+
+  const reserveUnits = !snapshotItem
+    ? 0
+    : mode === 'as_is'
+      ? estimateLines(snapshotItem)
+      : ENHANCE_SUMMARY_RESERVE_UNITS;
+
+  const fit = fitToPage(scored, pageLimit, reserveUnits);
+  return { scored, fit, snapshotItem };
 }
 
 /**
