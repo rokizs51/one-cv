@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { generateResume, QuotaExceededError, GenerationUnavailableError } from './orchestrate';
 import type { OrchestrateDeps, GenerateInput } from './orchestrate';
 import { makeFakeGenAI } from '@/lib/ai/fake';
@@ -25,6 +25,7 @@ function makeDeps(overrides?: Partial<OrchestrateDeps>): OrchestrateDeps {
     ai: makeFakeGenAI(),
     now: new Date('2026-10-15'),
     user: { id: 'user-1', email: 'test@example.com' },
+    enhanceModel: 'claude-sonnet-test',
     monthlyCostCeilingMicros: 1000000,
     ...overrides,
   };
@@ -167,6 +168,42 @@ describe('orchestrate.ts', () => {
 
       expect(result.doc.summary).toBe('Experienced frontend developer');
       expect(ai.calls.composeSummary.length).toBe(0);
+    });
+
+    it('pinned career_snapshot appears ONLY as summary, never as a section item', async () => {
+      // The dual-appearance bug: a *pinned* snapshot would be force-kept by the
+      // fit engine and surface in sections under the 'summary' id. The scored
+      // pipeline now excludes career_snapshot entirely, so it appears once.
+      const items = [
+        makeItem({
+          id: 'snapshot-1',
+          type: 'career_snapshot',
+          canonicalText: 'Backend engineer, 3 yrs fintech',
+          payload: { text: 'Backend engineer, 3 yrs fintech' },
+          pinned: true,
+        }),
+        makeItem({
+          id: 'item-1',
+          type: 'experience',
+          canonicalText: 'Built React apps with TypeScript',
+        }),
+      ];
+
+      const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+      const deps = makeDeps({ supa });
+      const result = await generateResume(deps, {
+        jdId: 'jd-1',
+        mode: 'as_is',
+        pageLimit: 1,
+      });
+
+      // Expressed exactly once, as the top-level summary.
+      expect(result.doc.summary).toBe('Backend engineer, 3 yrs fintech');
+      // Never as a section.
+      const summarySection = result.doc.sections.find((s) => s.id === 'summary');
+      expect(summarySection).toBeUndefined();
+      const allSectionItemIds = result.doc.sections.flatMap((s) => s.items.map((i) => i.sourceItemId));
+      expect(allSectionItemIds).not.toContain('snapshot-1');
     });
 
     it('omits summary section when career_snapshot missing', async () => {
@@ -580,6 +617,48 @@ describe('orchestrate.ts', () => {
       };
 
       await expect(generateResume(deps, input)).rejects.toThrow('not_found');
+    });
+  });
+
+  describe('cost recording', () => {
+    const savedPricing = process.env.PRICING_JSON;
+    afterEach(() => {
+      if (savedPricing === undefined) delete process.env.PRICING_JSON;
+      else process.env.PRICING_JSON = savedPricing;
+    });
+
+    it('as-is records zero cost (no LLM ran)', async () => {
+      const items = [
+        makeItem({ id: 'item-1', type: 'experience', canonicalText: 'Built React apps with TypeScript' }),
+      ];
+      const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+      const deps = makeDeps({ supa });
+      await generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1 });
+
+      const upd = supa.calls.from.find(
+        (c) => c.table === 'generation_quota' && c.method === 'update'
+      );
+      expect(upd?.args.llm_cost_micros).toBe(0);
+    });
+
+    it('enhance records cost estimated from deps.enhanceModel, not a hardcoded literal', async () => {
+      // Pricing keyed by the injected model. If the code still used the old
+      // hardcoded 'claude-3-5-sonnet-20241022', the lookup would miss → 0.
+      process.env.PRICING_JSON = JSON.stringify({
+        'claude-sonnet-test': { input: 3, output: 15 },
+      });
+      const items = [
+        makeItem({ id: 'item-1', type: 'experience', canonicalText: 'Built React apps with TypeScript' }),
+      ];
+      const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+      const deps = makeDeps({ supa });
+      await generateResume(deps, { jdId: 'jd-1', mode: 'enhance', pageLimit: 1 });
+
+      const upd = supa.calls.from.find(
+        (c) => c.table === 'generation_quota' && c.method === 'update'
+      );
+      // ESTIMATE_INPUT_TOKENS(1000)*3 + ESTIMATE_OUTPUT_TOKENS(500)*15 = 10500
+      expect(upd?.args.llm_cost_micros).toBe(10500);
     });
   });
 });

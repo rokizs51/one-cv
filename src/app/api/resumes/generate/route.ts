@@ -5,7 +5,6 @@ import { getSessionUser } from '@/lib/auth/session';
 import { createGenAI } from '@/lib/ai/client';
 import { aiConfig } from '@/lib/ai/env';
 import { generateResume, QuotaExceededError, GenerationUnavailableError, NotFoundError } from '@/lib/resume/orchestrate';
-import { listResumes, getResume } from '@/lib/db/resumes';
 import type { GenMode } from '@/lib/domain/types';
 
 export async function POST(request: Request) {
@@ -76,6 +75,7 @@ export async function POST(request: Request) {
         ai: genAI,
         now: new Date(),
         user,
+        enhanceModel: config.enhanceModel,
         monthlyCostCeilingMicros: config.monthlyCostCeilingMicros,
       },
       {
@@ -110,68 +110,6 @@ export async function POST(request: Request) {
     }
     
     console.error('Resume generation error:', error);
-    return NextResponse.json(
-      { error: { code: 'internal_error', message: 'An unexpected error occurred' } },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    // 1. Session check
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: { code: 'unauthorized', message: 'Authentication required' } },
-        { status: 401 }
-      );
-    }
-
-    // Parse URL to check if we're getting a specific resume or listing all
-    const url = new URL(request.url);
-    const pathParts = url.pathname.split('/');
-    const resumeId = pathParts[pathParts.length - 1];
-    
-    // If URL ends with /api/resumes (no ID), list all resumes
-    if (resumeId === 'resumes' || resumeId === '') {
-      const cookieStore = await cookies();
-      const supabase = await createServerClient(
-        () => cookieStore.getAll().map(c => ({ name: c.name, value: c.value })),
-        (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options as any);
-          });
-        }
-      );
-
-      const resumes = await listResumes(supabase, user.id);
-      return NextResponse.json({ resumes }, { status: 200 });
-    }
-
-    // Otherwise, get specific resume
-    const cookieStore = await cookies();
-    const supabase = await createServerClient(
-      () => cookieStore.getAll().map(c => ({ name: c.name, value: c.value })),
-      (cookiesToSet) => {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options as any);
-        });
-      }
-    );
-
-    const resume = await getResume(supabase, resumeId);
-    
-    if (!resume) {
-      return NextResponse.json(
-        { error: { code: 'not_found', message: 'Resume not found' } },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ resume }, { status: 200 });
-  } catch (error) {
-    console.error('Resume retrieval error:', error);
     return NextResponse.json(
       { error: { code: 'internal_error', message: 'An unexpected error occurred' } },
       { status: 500 }

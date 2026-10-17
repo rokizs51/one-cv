@@ -18,16 +18,19 @@ export function monthKey(now: Date): string {
 
 /**
  * Get current quota usage for a user.
+ * Pass an explicit `now` (e.g. orchestrate's deps.now) to make the month key
+ * deterministic in tests; defaults to wall-clock.
  */
 export async function currentUsage(
   supa: SupabaseClient,
-  userId: string
+  userId: string,
+  now?: Date
 ): Promise<QuotaUsage> {
   const { data, error } = await supa
     .from('generation_quota')
     .select('generations, llm_cost_micros')
     .eq('user_id', userId)
-    .eq('month', monthKey(new Date()))
+    .eq('month', monthKey(now ?? new Date()))
     .single();
 
   if (error) {
@@ -50,13 +53,15 @@ export async function currentUsage(
 
 /**
  * Record a generation for a user (upsert on user_id + month).
+ * Pass an explicit `now` to make the month key deterministic in tests.
  */
 export async function recordGeneration(
   supa: SupabaseClient,
   userId: string,
-  costMicros: number
+  costMicros: number,
+  now?: Date
 ): Promise<void> {
-  const month = monthKey(new Date());
+  const month = monthKey(now ?? new Date());
 
   const { data: existing, error: readError } = await supa
     .from('generation_quota')

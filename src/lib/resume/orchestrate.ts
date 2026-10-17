@@ -27,8 +27,15 @@ export interface OrchestrateDeps {
   ai: GenAI;
   now: Date;
   user: { id: string; email: string };
+  enhanceModel: string;
   monthlyCostCeilingMicros: number;
 }
+
+// Rough token budget for one enhance generation (composeSummary + enhance
+// combined); used only to estimate cost against PRICING_JSON, never reported
+// to the user as exact usage.
+const ESTIMATE_INPUT_TOKENS = 1000;
+const ESTIMATE_OUTPUT_TOKENS = 500;
 
 export interface GenerateInput {
   jdId: string;
@@ -65,7 +72,7 @@ export async function generateResume(
   const { jdId, mode, pageLimit } = input;
 
   // 1. Check quota BEFORE any LLM call
-  const usage = await currentUsage(supa, user.id);
+  const usage = await currentUsage(supa, user.id, now);
   if (usage.generations >= GENERATIONS_CAP) {
     throw new QuotaExceededError();
   }
@@ -87,8 +94,14 @@ export async function generateResume(
     }
   }
 
-  // 4. Score every item
-  const scored: ScoredItem[] = items.map((item) => keywordScore(item, jd.extraction));
+  // 4. Score items, EXCLUDING career_snapshot. The snapshot is rendered as the
+  // doc's top-level summary (doc.summary), never as a section item. Filtering
+  // here — not just at doc build — keeps a *pinned* snapshot from being forced
+  // back into sections by the fit engine, scopes enhance/facts to real bullets,
+  // and stops the snapshot from double-counting page space.
+  const scored: ScoredItem[] = items
+    .filter((item) => item.type !== 'career_snapshot')
+    .map((item) => keywordScore(item, jd.extraction));
 
   // 5. Determine early career
   const earlyCareer = isEarlyCareer(items);
@@ -181,10 +194,13 @@ export async function generateResume(
   });
 
   // 10. Record generation
-  const costMicros = mode === 'enhance' 
-    ? estimateCostMicros('claude-3-5-sonnet-20241022', { input: 1000, output: 500 })
-    : 0;
-  await recordGeneration(supa, user.id, costMicros);
+  const costMicros = mode === 'enhance'
+    ? estimateCostMicros(deps.enhanceModel, {
+        input: ESTIMATE_INPUT_TOKENS,
+        output: ESTIMATE_OUTPUT_TOKENS,
+      })
+    : 0; // as-is runs zero LLM calls — record no spend
+  await recordGeneration(supa, user.id, costMicros, now);
 
   return resume;
 }

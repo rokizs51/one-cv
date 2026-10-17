@@ -23,7 +23,7 @@ vi.mock('@/lib/ai/env', () => ({
   aiConfig: vi.fn(),
 }));
 
-import { POST, GET } from './route';
+import { POST } from './route';
 import { getSessionUser } from '@/lib/auth/session';
 import { createServerClient } from '@/lib/db/client';
 import { createGenAI } from '@/lib/ai/client';
@@ -341,58 +341,5 @@ describe('POST /api/resumes/generate', () => {
     expect(fakeGenAI.calls.extractJd.length).toBe(0);
     expect(fakeGenAI.calls.enhance.length).toBe(0);
     expect(fakeGenAI.calls.composeSummary.length).toBe(0);
-  });
-});
-
-describe('GET /api/resumes', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('returns 401 when not authenticated', async () => {
-    mockGetSessionUser.mockResolvedValue(null);
-
-    const response = await GET(new Request('http://localhost:3000/api/resumes'));
-    const data = await response.json();
-
-    expect(response.status).toBe(401);
-    expect(data.error.code).toBe('unauthorized');
-  });
-
-  it('returns 200 with resume list on success', async () => {
-    mockGetSessionUser.mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
-
-    const supa = createSupaStub({
-      from: {
-        generated_resumes: {
-          data: [
-            {
-              id: 'resume-1',
-              owner: 'user-1',
-              jd_id: 'jd-1',
-              mode: 'as_is',
-              page_limit: 1,
-              doc: {},
-              suggestions: [],
-              statuses: [],
-              user_edits: {},
-              fit: { chosen: [], cuts: [], overflow: false },
-              created_at: '2026-10-15T00:00:00Z',
-              updated_at: '2026-10-15T00:00:00Z',
-            },
-          ],
-          error: null,
-        },
-      },
-    });
-    mockCreateServerClient.mockResolvedValue(supa as any);
-
-    const response = await GET(new Request('http://localhost:3000/api/resumes'));
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data.resumes).toBeDefined();
-    expect(Array.isArray(data.resumes)).toBe(true);
-    expect(data.resumes.length).toBe(1);
   });
 });
