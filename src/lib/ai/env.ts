@@ -2,17 +2,48 @@
 let pricingWarned = false;
 
 /**
- * AI configuration from environment variables.
- * Throws if required model IDs are missing.
+ * Supported providers:
+ * - 'anthropic'  — the Anthropic API (default)
+ * - 'qwen'       — Anthropic-WIRE-COMPATIBLE endpoints serving Qwen models
+ *   (e.g. Alibaba Cloud Model Studio token plans). Same request/response
+ *   shape, different baseURL + key + model IDs — which is exactly the
+ *   swap the spec's "provider-swappable single ai module" anticipated.
+ *   Requires AI_BASE_URL.
  */
-export function aiConfig() {
-  const provider = process.env.AI_PROVIDER ?? 'anthropic';
+export type AIProvider = 'anthropic' | 'qwen';
+
+const SUPPORTED_PROVIDERS: readonly string[] = ['anthropic', 'qwen'];
+
+export interface AIConfig {
+  provider: AIProvider;
+  extractionModel: string;
+  enhanceModel: string;
+  monthlyCostCeilingMicros: number;
+  /** Anthropic-wire-compatible endpoint override (qwen plans); undefined → SDK default. */
+  baseUrl?: string;
+}
+
+/**
+ * AI configuration from environment variables.
+ * Throws if the provider is unsupported or required vars are missing.
+ */
+export function aiConfig(): AIConfig {
+  const providerRaw = process.env.AI_PROVIDER ?? 'anthropic';
+  if (!SUPPORTED_PROVIDERS.includes(providerRaw)) {
+    throw new Error(
+      `Unsupported AI_PROVIDER: ${providerRaw}. Supported: ${SUPPORTED_PROVIDERS.join(', ')}`
+    );
+  }
+  const provider = providerRaw as AIProvider;
+
   const extractionModel = process.env.AI_MODEL_EXTRACTION;
   const enhanceModel = process.env.AI_MODEL_ENHANCE;
+  const baseUrl = process.env.AI_BASE_URL;
 
   const missing: string[] = [];
   if (!extractionModel) missing.push('AI_MODEL_EXTRACTION');
   if (!enhanceModel) missing.push('AI_MODEL_ENHANCE');
+  if (provider === 'qwen' && !baseUrl) missing.push('AI_BASE_URL');
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
@@ -25,6 +56,8 @@ export function aiConfig() {
     extractionModel: extractionModel!,
     enhanceModel: enhanceModel!,
     monthlyCostCeilingMicros,
+    // undefined → the SDK's own default endpoint
+    baseUrl,
   };
 }
 

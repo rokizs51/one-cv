@@ -8,6 +8,8 @@ describe('aiConfig', () => {
     delete process.env.AI_MODEL_EXTRACTION;
     delete process.env.AI_MODEL_ENHANCE;
     delete process.env.AI_MONTHLY_COST_MICROUSD_CEILING;
+    delete process.env.AI_BASE_URL;
+    delete process.env.AI_API_KEY;
   });
 
   it('throws when required env vars are missing', () => {
@@ -25,6 +27,41 @@ describe('aiConfig', () => {
     expect(config.extractionModel).toBe('claude-3-haiku-20240307');
     expect(config.enhanceModel).toBe('claude-3-5-sonnet-20241022');
     expect(typeof config.monthlyCostCeilingMicros).toBe('number');
+  });
+
+  it('rejects an unsupported provider', () => {
+    process.env.AI_PROVIDER = 'openai';
+    process.env.AI_MODEL_EXTRACTION = 'some-model';
+    process.env.AI_MODEL_ENHANCE = 'some-model';
+
+    expect(() => aiConfig()).toThrowError(/Unsupported AI_PROVIDER/);
+  });
+
+  it('qwen provider requires AI_BASE_URL', () => {
+    process.env.AI_PROVIDER = 'qwen';
+    process.env.AI_MODEL_EXTRACTION = 'qwen-turbo';
+    process.env.AI_MODEL_ENHANCE = 'qwen-plus';
+
+    expect(() => aiConfig()).toThrowError(/AI_BASE_URL/);
+  });
+
+  it('qwen provider with AI_BASE_URL returns qwen config', () => {
+    process.env.AI_PROVIDER = 'qwen';
+    process.env.AI_MODEL_EXTRACTION = 'qwen-turbo';
+    process.env.AI_MODEL_ENHANCE = 'qwen-plus';
+    process.env.AI_BASE_URL = 'https://coding.example-qwen-plan.com/apps/anthropic';
+
+    const config = aiConfig();
+
+    expect(config.provider).toBe('qwen');
+    expect(config.baseUrl).toBe('https://coding.example-qwen-plan.com/apps/anthropic');
+  });
+
+  it('anthropic provider leaves baseUrl undefined (SDK default endpoint)', () => {
+    process.env.AI_MODEL_EXTRACTION = 'claude-haiku-4-5';
+    process.env.AI_MODEL_ENHANCE = 'claude-sonnet-5';
+
+    expect(aiConfig().baseUrl).toBeUndefined();
   });
 
   it('uses default monthly cost ceiling when not set', () => {

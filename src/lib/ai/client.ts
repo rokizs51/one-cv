@@ -33,20 +33,21 @@ const EnhanceResponseSchema = z.object({
 });
 
 /**
- * Creates the real GenAI provider using Anthropic via AI SDK.
- * Throws if AI_PROVIDER is not 'anthropic' (v1 YAGNI gate).
+ * Creates the real GenAI provider via AI SDK.
+ *
+ * Both supported providers speak the Anthropic wire protocol (aiConfig()
+ * gates AI_PROVIDER to 'anthropic' | 'qwen'): 'qwen' points the same client
+ * at an Anthropic-compatible endpoint from a Qwen token plan, with
+ * AI_BASE_URL + model IDs supplied by that plan.
  */
 export function createGenAI(): GenAI {
   const config = aiConfig();
 
-  if (config.provider !== 'anthropic') {
-    throw new Error(
-      `Unsupported AI_PROVIDER: ${config.provider}. Only 'anthropic' is supported in v1.`
-    );
-  }
-
   const anthropic = createAnthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
+    // AI_API_KEY is the provider-neutral name; ANTHROPIC_API_KEY kept as
+    // the fallback so existing setups need no change.
+    apiKey: process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY,
+    baseURL: config.baseUrl, // undefined → SDK default (api.anthropic.com)
   });
 
   return {
