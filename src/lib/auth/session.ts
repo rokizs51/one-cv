@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { createServerClient } from '@/lib/db/client';
+import { createRouteClient } from '@/lib/db/client';
 
 /**
  * Get the current authenticated user from the session.
@@ -8,15 +8,8 @@ import { createServerClient } from '@/lib/db/client';
  */
 export async function getSessionUser(): Promise<{ id: string; email: string } | null> {
   const cookieStore = await cookies();
-  
-  const supabase = await createServerClient(
-    () => cookieStore.getAll().map(c => ({ name: c.name, value: c.value })),
-    (cookiesToSet) => {
-      cookiesToSet.forEach(({ name, value, options }) => {
-        cookieStore.set(name, value, options as any);
-      });
-    }
-  );
+
+  const supabase = await createRouteClient(cookieStore);
 
   const { data: { user }, error } = await supabase.auth.getUser();
   

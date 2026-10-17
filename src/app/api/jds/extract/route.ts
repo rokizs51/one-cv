@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@/lib/db/client';
+import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { createGenAI } from '@/lib/ai/client';
 import { aiConfig } from '@/lib/ai/env';
@@ -49,14 +49,7 @@ export async function POST(request: Request) {
     // 3. Cost ceiling check (before LLM call)
     const config = aiConfig();
     const cookieStore = await cookies();
-    const supabase = await createServerClient(
-      () => cookieStore.getAll().map(c => ({ name: c.name, value: c.value })),
-      (cookiesToSet) => {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options as any);
-        });
-      }
-    );
+    const supabase = await createRouteClient(cookieStore);
 
     const month = monthKey(new Date());
     const currentCost = await globalLlmCost(supabase, month);

@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentUsage, recordGeneration } from './quota';
 import { acceptText, revertText, updateItem } from './items';
 import { updatePersonal } from './profiles';
-import { updateResumeFields } from './resumes';
+import { updateResumeFields, getResume } from './resumes';
 import type { ProfileItem } from '../domain/types';
 
 // Mock Supabase client that returns errors
@@ -103,6 +103,18 @@ describe('Repository error handling', () => {
       await expect(
         updateResumeFields(supa, 'resume-1', { userEdits: { 'item-1': 'Edited bullet text' } })
       ).rejects.toThrow('Database error');
+    });
+
+    it('getResume throws on database errors (never conflated with not-found)', async () => {
+      const supa = createErrorClient(dbError);
+      await expect(getResume(supa, '11111111-1111-4111-8111-111111111111')).rejects.toThrow(
+        'Database error'
+      );
+    });
+
+    it('getResume returns null only for a genuinely absent row (PGRST116)', async () => {
+      const supa = createErrorClient(notFoundError);
+      await expect(getResume(supa, '11111111-1111-4111-8111-111111111111')).resolves.toBeNull();
     });
   });
 

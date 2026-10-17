@@ -17,15 +17,15 @@ vi.mock('@/lib/auth/session', () => ({
 }));
 
 vi.mock('@/lib/db/client', () => ({
-  createServerClient: vi.fn(),
+  createRouteClient: vi.fn(),
 }));
 
 import { GET } from './route';
 import { getSessionUser } from '@/lib/auth/session';
-import { createServerClient } from '@/lib/db/client';
+import { createRouteClient } from '@/lib/db/client';
 
 const mockGetSessionUser = vi.mocked(getSessionUser);
-const mockCreateServerClient = vi.mocked(createServerClient);
+const mockCreateRouteClient = vi.mocked(createRouteClient);
 
 describe('GET /api/resumes', () => {
   beforeEach(() => {
@@ -68,7 +68,7 @@ describe('GET /api/resumes', () => {
         },
       },
     });
-    mockCreateServerClient.mockResolvedValue(supa as any);
+    mockCreateRouteClient.mockResolvedValue(supa as any);
 
     const response = await GET();
     const data = await response.json();

@@ -7,15 +7,15 @@ vi.mock('next/headers', () => ({
 
 // Mock the Supabase client
 vi.mock('@/lib/db/client', () => ({
-  createServerClient: vi.fn(),
+  createRouteClient: vi.fn(),
 }));
 
 import { getSessionUser } from './session';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@/lib/db/client';
+import { createRouteClient } from '@/lib/db/client';
 
 const mockCookies = vi.mocked(cookies);
-const mockCreateServerClient = vi.mocked(createServerClient);
+const mockCreateRouteClient = vi.mocked(createRouteClient);
 
 describe('getSessionUser', () => {
   beforeEach(() => {
@@ -31,7 +31,7 @@ describe('getSessionUser', () => {
 
     // Even with no cookies, we still create a client and call getUser
     const mockGetUser = vi.fn().mockResolvedValue({ data: { user: null }, error: null });
-    mockCreateServerClient.mockResolvedValue({
+    mockCreateRouteClient.mockResolvedValue({
       auth: { getUser: mockGetUser },
     } as any);
 
@@ -47,7 +47,7 @@ describe('getSessionUser', () => {
       set: vi.fn(),
     } as any);
     
-    mockCreateServerClient.mockResolvedValue({
+    mockCreateRouteClient.mockResolvedValue({
       auth: { getUser: mockGetUser },
     } as any);
 
@@ -64,7 +64,7 @@ describe('getSessionUser', () => {
       set: vi.fn(),
     } as any);
     
-    mockCreateServerClient.mockResolvedValue({
+    mockCreateRouteClient.mockResolvedValue({
       auth: { getUser: mockGetUser },
     } as any);
 
@@ -80,7 +80,7 @@ describe('getSessionUser', () => {
       set: vi.fn(),
     } as any);
     
-    mockCreateServerClient.mockResolvedValue({
+    mockCreateRouteClient.mockResolvedValue({
       auth: { getUser: mockGetUser },
     } as any);
 

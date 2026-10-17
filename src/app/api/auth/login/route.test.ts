@@ -5,16 +5,16 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
 
-vi.mock('@supabase/ssr', () => ({
-  createServerClient: vi.fn(),
+vi.mock('@/lib/db/client', () => ({
+  createRouteClient: vi.fn(),
 }));
 
 import { POST } from './route';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { createRouteClient } from '@/lib/db/client';
 
 const mockCookies = vi.mocked(cookies);
-const mockCreateServerClient = vi.mocked(createServerClient);
+const mockCreateRouteClient = vi.mocked(createRouteClient);
 
 describe('POST /api/auth/login', () => {
   let mockSupabase: any;
@@ -38,7 +38,7 @@ describe('POST /api/auth/login', () => {
       },
       from: vi.fn(),
     };
-    mockCreateServerClient.mockReturnValue(mockSupabase);
+    mockCreateRouteClient.mockReturnValue(mockSupabase);
 
     // Set env vars
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';

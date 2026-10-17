@@ -1,6 +1,6 @@
 import { NextResponse, connection } from 'next/server';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@/lib/db/client';
+import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { listResumes } from '@/lib/db/resumes';
 
@@ -20,14 +20,7 @@ export async function GET() {
     }
 
     const cookieStore = await cookies();
-    const supabase = await createServerClient(
-      () => cookieStore.getAll().map(c => ({ name: c.name, value: c.value })),
-      (cookiesToSet) => {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options as any);
-        });
-      }
-    );
+    const supabase = await createRouteClient(cookieStore);
 
     const resumes = await listResumes(supabase, user.id);
     return NextResponse.json({ resumes }, { status: 200 });

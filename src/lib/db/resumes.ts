@@ -127,6 +127,9 @@ export async function listResumes(
 
 /**
  * Get a resume by ID.
+ * Returns null only for a genuinely absent row (PGRST116 — RLS also reports
+ * foreign rows this way). Database errors THROW like every other repo method,
+ * so callers never mistake an outage for a 404.
  */
 export async function getResume(
   supa: SupabaseClient,
@@ -138,7 +141,11 @@ export async function getResume(
     .eq('id', resumeId)
     .single();
 
-  if (error || !data) return null;
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+  if (!data) return null;
 
   return {
     id: data.id as string,

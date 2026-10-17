@@ -255,3 +255,27 @@ describe('snapshotOf', () => {
     }
   });
 });
+
+describe('fitToPage — reservedUnits (summary page-space)', () => {
+  it('reserves budget so content that would fill the raw page gets cut', () => {
+    // A 70-line item fits a 78-unit page…
+    const fits = fitToPage([itemWithLines('a', 70)], 1);
+    expect(fits.cuts.filter((c) => c.reason === 'space')).toHaveLength(0);
+
+    // …but not once 20 units are reserved for the rendered doc.summary.
+    const reserved = fitToPage([itemWithLines('a', 70)], 1, 20);
+    expect(reserved.cuts.filter((c) => c.reason === 'space').map((c) => c.item.item.id)).toContain('a');
+  });
+
+  it('pinned content that fits rawly overflows once the reservation makes it not fit', () => {
+    const pinned = [itemWithLines('big', 75, true)];
+    expect(fitToPage(pinned, 1).overflow).toBe(false);
+    expect(fitToPage(pinned, 1, 10).overflow).toBe(true);
+  });
+
+  it('clamps: a reservation of the whole budget leaves zero room but never goes negative', () => {
+    const small = itemWithLines('tiny', 2);
+    const result = fitToPage([small], 1, PAGE_UNITS[1]);
+    expect(result.cuts.some((c) => c.reason === 'space')).toBe(true);
+  });
+});

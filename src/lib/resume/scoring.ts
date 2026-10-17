@@ -7,7 +7,12 @@ export interface ScoredItem {
   section: SectionId;
 }
 
-// Map item types to section IDs
+// Map item types to section IDs.
+// NOTE: career_snapshot's section is 'summary', but orderSections never emits
+// a summary section (see BASE_ORDER comment): the snapshot renders as the
+// doc's top-level doc.summary, and orchestrate filters snapshot items out of
+// the scored pipeline. Do NOT re-admit 'summary' to the section lists — that
+// reintroduces the dual-appearance bug pinned by orchestrate's tests.
 const TYPE_TO_SECTION: Record<ItemType, SectionId> = {
   career_snapshot: 'summary',
   education: 'education',
@@ -20,7 +25,6 @@ const TYPE_TO_SECTION: Record<ItemType, SectionId> = {
 
 /**
  * Maps a ProfileItem's type to its corresponding SectionId.
- * career_snapshot maps to 'summary' per the brief.
  */
 export function sectionOf(item: ProfileItem): SectionId {
   return TYPE_TO_SECTION[item.type];
@@ -115,9 +119,10 @@ export function keywordScore(item: ProfileItem, jd: JdExtraction): ScoredItem {
   };
 }
 
-// Base order for sections
+// Base order for sections. No 'summary' entry by design: the headline
+// summary is doc.summary (rendered by the template separately), never a
+// section — see TYPE_TO_SECTION note above.
 const BASE_ORDER: SectionId[] = [
-  'summary',
   'skills',
   'experience',
   'projects',
@@ -128,7 +133,6 @@ const BASE_ORDER: SectionId[] = [
 
 // Early career order: education and projects before experience
 const EARLY_CAREER_ORDER: SectionId[] = [
-  'summary',
   'skills',
   'education',
   'projects',
@@ -139,9 +143,9 @@ const EARLY_CAREER_ORDER: SectionId[] = [
 
 /**
  * Orders sections based on scored items and early career flag.
- * - Base order: summary, skills, experience, projects, education, awards, languages
+ * - Base order: skills, experience, projects, education, awards, languages
  * - If earlyCareer: education and projects move before experience
- * - Empty sections are omitted
+ * - Empty sections are omitted; a 'summary' section is never emitted
  */
 export function orderSections(
   items: ScoredItem[],
@@ -188,9 +192,11 @@ export function orderSections(
  * Recent graduates override this — even with established work history, show education first.
  * 
  * This is a simple deterministic rule for section ordering.
+ * Pass an explicit `now` (orchestrate passes deps.now) so the year boundary
+ * is deterministic in tests; defaults to wall-clock.
  */
-export function isEarlyCareer(items: ProfileItem[]): boolean {
-  const currentYear = new Date().getFullYear();
+export function isEarlyCareer(items: ProfileItem[], now: Date = new Date()): boolean {
+  const currentYear = now.getUTCFullYear();
 
   const experienceItems = items.filter((item) => item.type === 'experience');
   const educationItems = items.filter((item) => item.type === 'education');

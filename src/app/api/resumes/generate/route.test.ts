@@ -12,7 +12,7 @@ vi.mock('@/lib/auth/session', () => ({
 }));
 
 vi.mock('@/lib/db/client', () => ({
-  createServerClient: vi.fn(),
+  createRouteClient: vi.fn(),
 }));
 
 vi.mock('@/lib/ai/client', () => ({
@@ -25,12 +25,12 @@ vi.mock('@/lib/ai/env', () => ({
 
 import { POST } from './route';
 import { getSessionUser } from '@/lib/auth/session';
-import { createServerClient } from '@/lib/db/client';
+import { createRouteClient } from '@/lib/db/client';
 import { createGenAI } from '@/lib/ai/client';
 import { aiConfig } from '@/lib/ai/env';
 
 const mockGetSessionUser = vi.mocked(getSessionUser);
-const mockCreateServerClient = vi.mocked(createServerClient);
+const mockCreateRouteClient = vi.mocked(createRouteClient);
 const mockCreateGenAI = vi.mocked(createGenAI);
 const mockAiConfig = vi.mocked(aiConfig);
 
@@ -88,7 +88,7 @@ describe('POST /api/resumes/generate', () => {
         month_llm_cost: { data: 0, error: null },
       },
     });
-    mockCreateServerClient.mockResolvedValue(supa as any);
+    mockCreateRouteClient.mockResolvedValue(supa as any);
 
     const fakeGenAI = makeFakeGenAI();
     mockCreateGenAI.mockReturnValue(fakeGenAI);
@@ -155,7 +155,7 @@ describe('POST /api/resumes/generate', () => {
         month_llm_cost: { data: 0, error: null },
       },
     });
-    mockCreateServerClient.mockResolvedValue(supa as any);
+    mockCreateRouteClient.mockResolvedValue(supa as any);
 
     const fakeGenAI = makeFakeGenAI();
     mockCreateGenAI.mockReturnValue(fakeGenAI);
@@ -225,7 +225,7 @@ describe('POST /api/resumes/generate', () => {
         month_llm_cost: { data: 2000, error: null },
       },
     });
-    mockCreateServerClient.mockResolvedValue(supa as any);
+    mockCreateRouteClient.mockResolvedValue(supa as any);
 
     const fakeGenAI = makeFakeGenAI();
     mockCreateGenAI.mockReturnValue(fakeGenAI);
@@ -324,7 +324,7 @@ describe('POST /api/resumes/generate', () => {
         month_llm_cost: { data: 0, error: null },
       },
     });
-    mockCreateServerClient.mockResolvedValue(supa as any);
+    mockCreateRouteClient.mockResolvedValue(supa as any);
 
     const fakeGenAI = makeFakeGenAI();
     mockCreateGenAI.mockReturnValue(fakeGenAI);

@@ -32,3 +32,33 @@ export async function createServerClient(
     },
   });
 }
+
+/**
+ * Minimal structural view of next/headers' `await cookies()` result — enough
+ * to bridge Supabase's cookie adapter to it without importing Next types here.
+ */
+export interface RouteCookieStore {
+  getAll(): { name: string; value: string }[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set(name: string, value: string, options?: any): void;
+}
+
+/**
+ * THE cookie-session bootstrap for route handlers and server helpers.
+ * The Supabase↔Next cookie bridge was previously copy-pasted into eight
+ * files; this is now the single place session-refresh handling (and the
+ * options-shape cast) lives. Use from any route handler:
+ *
+ *   const cookieStore = await cookies();
+ *   const supabase = await createRouteClient(cookieStore);
+ */
+export async function createRouteClient(cookieStore: RouteCookieStore): Promise<SupabaseClient> {
+  return createServerClient(
+    () => cookieStore.getAll(),
+    (cookiesToSet) => {
+      for (const { name, value, options } of cookiesToSet) {
+        cookieStore.set(name, value, options);
+      }
+    }
+  );
+}

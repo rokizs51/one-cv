@@ -241,8 +241,9 @@ describe('orderSections', () => {
     const scoredItems = items.map((item) => keywordScore(item, jd));
     const sections = orderSections(scoredItems, { earlyCareer: false });
 
+    // 'summary' is never emitted even though the career_snapshot item is
+    // present: the headline lives in doc.summary, rendered separately.
     expect(sections.map((s) => s.id)).toEqual([
-      'summary',
       'skills',
       'experience',
       'projects',
@@ -277,7 +278,6 @@ describe('orderSections', () => {
     const sections = orderSections(scoredItems, { earlyCareer: true });
 
     expect(sections.map((s) => s.id)).toEqual([
-      'summary',
       'skills',
       'education',
       'projects',
@@ -405,5 +405,17 @@ describe('isEarlyCareer', () => {
     ];
 
     expect(isEarlyCareer(items)).toBe(false);
+  });
+
+  it('is deterministic in the injected now (orchestrate passes deps.now)', () => {
+    // Same data; the stale-vs-recent boundary moves only with `now`.
+    const items: ProfileItem[] = [
+      makeItem({ type: 'experience', id: '1', payload: { start: '2021', end: '2022' } }),
+    ];
+
+    // end 2022 is "recent" (>= 2024-2) in 2024 → not early career
+    expect(isEarlyCareer(items, new Date('2024-06-01T00:00:00Z'))).toBe(false);
+    // the same record is stale (2022 < 2026-2) in 2026 → early career
+    expect(isEarlyCareer(items, new Date('2026-06-01T00:00:00Z'))).toBe(true);
   });
 });

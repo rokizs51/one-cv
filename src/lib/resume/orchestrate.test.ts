@@ -654,8 +654,9 @@ describe('orchestrate.ts', () => {
       process.env.PRICING_JSON = JSON.stringify({
         'claude-sonnet-test': { input: 3, output: 15 },
       });
+      const text = 'Built React apps with TypeScript'; // 32 chars
       const items = [
-        makeItem({ id: 'item-1', type: 'experience', canonicalText: 'Built React apps with TypeScript' }),
+        makeItem({ id: 'item-1', type: 'experience', canonicalText: text }),
       ];
       const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
       const deps = makeDeps({ supa });
@@ -664,8 +665,52 @@ describe('orchestrate.ts', () => {
       const upd = supa.calls.from.find(
         (c) => c.table === 'generation_quota' && c.method === 'update'
       );
-      // ESTIMATE_INPUT_TOKENS(1000)*3 + ESTIMATE_OUTPUT_TOKENS(500)*15 = 10500
-      expect(upd?.args.llm_cost_micros).toBe(10500);
+      // input = 800 + ceil(33/4) = 809 (32 chars + 1 join)
+      // output = 150 + 1*80 = 230
+      // 809*3 + 230*15 = 2427 + 3450 = 5877
+      expect(upd?.args.llm_cost_micros).toBe(5877);
+    });
+  });
+
+  describe('summary page-space', () => {
+    it('as-is: a long snapshot reserves lines so bullets get space-cut instead of spilling', async () => {
+      // Snapshot of 76*64 chars = 76 estimated lines of a 78-unit page.
+      const snapshotText = 'x'.repeat(76 * 64);
+      const bullets = 'React ' + 'y'.repeat(4 * 64 - 6); // keyword-bearing, 4 lines — fits rawly, not after the reserve
+      const items = [
+        makeItem({ id: 'snap-1', type: 'career_snapshot', canonicalText: snapshotText }),
+        makeItem({ id: 'exp-1', type: 'experience', canonicalText: bullets }),
+      ];
+      const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+      const deps = makeDeps({ supa });
+      const result = await generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1 });
+
+      expect(result.doc.summary).toBe(snapshotText);
+      // The bullet must be cut for space (2 units left after the 76-unit reserve).
+      expect(result.fit.cuts).toEqual(
+        expect.arrayContaining([expect.objectContaining({ itemId: 'exp-1', reason: 'space' })])
+      );
+      expect(result.fit.chosen).not.toContain('exp-1');
+    });
+
+    it('pinned content overflow is reported honestly when the snapshot reserve tips it over', async () => {
+      const snapshotText = 'z'.repeat(5 * 64); // 5-unit reserve
+      const items = [
+        makeItem({ id: 'snap-1', type: 'career_snapshot', canonicalText: snapshotText }),
+        makeItem({
+          id: 'pin-1',
+          type: 'experience',
+          canonicalText: 'React ' + 'w'.repeat(75 * 64 - 6), // 75 units: fits 78 rawly, not 78-5
+          pinned: true,
+        }),
+      ];
+      const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+      const deps = makeDeps({ supa });
+      const result = await generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1 });
+
+      expect(result.fit.overflow).toBe(true);
+      // pinned is never dropped
+      expect(result.fit.chosen).toContain('pin-1');
     });
   });
 });

@@ -51,10 +51,16 @@ export function estimateLines(item: ProfileItem, width?: number): number {
  * 2. Unpinned items with score < MIN_SCORE are cut with reason 'relevance'
  * 3. Remaining unpinned sorted by score desc, accumulated until budget exhausted
  * 4. Rest cut with reason 'space'
- * 5. If pinned alone exceeds PAGE_UNITS → overflow: true
+ * 5. If pinned alone exceeds the remaining budget → overflow: true
+ *
+ * `reservedUnits` holds back line budget for content that renders on the page
+ * but is deliberately not part of `scored` — namely doc.summary (the
+ * career_snapshot is excluded from scoring so it can never appear twice).
+ * Without the reservation the summary's rendered lines go uncounted and a
+ * "fitting" doc silently spills to page 2.
  */
-export function fitToPage(scored: ScoredItem[], pageLimit: 1 | 2): FitResult {
-  const budget = PAGE_UNITS[pageLimit];
+export function fitToPage(scored: ScoredItem[], pageLimit: 1 | 2, reservedUnits: number = 0): FitResult {
+  const budget = Math.max(0, PAGE_UNITS[pageLimit] - Math.max(0, reservedUnits));
   
   // Separate pinned from unpinned
   const pinned: ScoredItem[] = [];

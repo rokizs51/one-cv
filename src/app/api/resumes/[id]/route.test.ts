@@ -17,15 +17,18 @@ vi.mock('@/lib/auth/session', () => ({
 }));
 
 vi.mock('@/lib/db/client', () => ({
-  createServerClient: vi.fn(),
+  createRouteClient: vi.fn(),
 }));
 
 import { GET } from './route';
 import { getSessionUser } from '@/lib/auth/session';
-import { createServerClient } from '@/lib/db/client';
+import { createRouteClient } from '@/lib/db/client';
 
 const mockGetSessionUser = vi.mocked(getSessionUser);
-const mockCreateServerClient = vi.mocked(createServerClient);
+const mockCreateRouteClient = vi.mocked(createRouteClient);
+
+const RESUME_ID = '11111111-1111-4111-8111-111111111111';
+const OTHER_ID = '22222222-2222-4222-8222-222222222222';
 
 function makeContext(id: string) {
   // Next 16: params is a Promise resolved by the router.
@@ -42,7 +45,7 @@ describe('GET /api/resumes/:id', () => {
   it('returns 401 when not authenticated', async () => {
     mockGetSessionUser.mockResolvedValue(null);
 
-    const response = await GET(request(), makeContext('resume-1'));
+    const response = await GET(request(), makeContext(RESUME_ID));
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -56,7 +59,7 @@ describe('GET /api/resumes/:id', () => {
       from: {
         generated_resumes: {
           data: {
-            id: 'resume-1',
+            id: RESUME_ID,
             owner: 'user-1',
             jd_id: 'jd-1',
             mode: 'as_is',
@@ -73,13 +76,23 @@ describe('GET /api/resumes/:id', () => {
         },
       },
     });
-    mockCreateServerClient.mockResolvedValue(supa as any);
+    mockCreateRouteClient.mockResolvedValue(supa as any);
 
-    const response = await GET(request(), makeContext('resume-1'));
+    const response = await GET(request(), makeContext(RESUME_ID));
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.resume.id).toBe('resume-1');
+    expect(data.resume.id).toBe(RESUME_ID);
+  });
+
+  it('returns 400 invalid_request for a malformed (non-uuid) id', async () => {
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+
+    const response = await GET(request(), makeContext('totally-not-a-uuid'));
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error.code).toBe('invalid_request');
   });
 
   it('returns 404 not_found for an unknown id', async () => {
@@ -87,9 +100,9 @@ describe('GET /api/resumes/:id', () => {
 
     // No generated_resumes configured → getResume returns null.
     const supa = createSupaStub();
-    mockCreateServerClient.mockResolvedValue(supa as any);
+    mockCreateRouteClient.mockResolvedValue(supa as any);
 
-    const response = await GET(request(), makeContext('nonexistent-id'));
+    const response = await GET(request(), makeContext(OTHER_ID));
     const data = await response.json();
 
     expect(response.status).toBe(404);
