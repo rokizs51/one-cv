@@ -6,9 +6,12 @@ Owner-operated. Do not run until the Supabase project exists and the migration h
 
 - [ ] Create a free Supabase project (note the project URL and anon/service-role keys).
 - [ ] Copy the URL + both keys into `.env.local` (file is gitignored).
-- [ ] Apply the migration either:
+- [ ] Apply BOTH migrations in order (0002 grants the app roles table
+  privileges — without it every API call 403s with 42501, RLS policies
+  notwithstanding):
   - via CLI: `supabase link --project-ref <ref>` then `supabase db push`, OR
-  - by pasting `supabase/migrations/0001_init.sql` into the Supabase SQL editor and running it.
+  - by pasting `supabase/migrations/0001_init.sql` then
+    `supabase/migrations/0002_grants.sql` into the Supabase SQL editor, running each.
 - [ ] Confirm in the dashboard that all 5 tables exist (`profiles`, `profile_items`, `job_descriptions`, `generated_resumes`, `generation_quota`).
 
 ## 2. Invite seeding — REMOVED
