@@ -54,31 +54,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify the user has claimed an invite
-    const { data: inviteRow, error: inviteError } = await supabase
-      .from('invites')
-      .select('code')
-      .eq('claimed_by', signInData.user.id)
-      .maybeSingle();
-
-    if (inviteError) {
-      console.error('Error checking invite:', inviteError);
-      return NextResponse.json(
-        { error: { code: 'internal_error', message: 'Failed to verify invite status' } },
-        { status: 500 }
-      );
-    }
-
-    // If no invite row found, user doesn't have access
-    if (!inviteRow) {
-      // Sign out the user since they don't have invite access
-      await supabase.auth.signOut();
-      return NextResponse.json(
-        { error: { code: 'invite_required', message: 'You need a valid invite to access this application' } },
-        { status: 403 }
-      );
-    }
-
     return NextResponse.json(
       { 
         user: { 

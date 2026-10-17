@@ -4,7 +4,6 @@ import { currentUsage, recordGeneration } from './quota';
 import { acceptText, revertText, updateItem } from './items';
 import { updatePersonal } from './profiles';
 import { updateResumeFields } from './resumes';
-import { claimInvite, inviteExists } from './invites';
 import type { ProfileItem } from '../domain/types';
 
 // Mock Supabase client that returns errors
@@ -107,29 +106,4 @@ describe('Repository error handling', () => {
     });
   });
 
-  describe('invites', () => {
-    it('claimInvite throws on database error', async () => {
-      const supa = createErrorClient(dbError);
-      await expect(claimInvite(supa, 'CODE123', 'user-123')).rejects.toThrow('Database error');
-    });
-
-    it('inviteExists throws on database error', async () => {
-      // Mock environment variables for inviteExists
-      const originalEnv = process.env;
-      process.env = {
-        ...originalEnv,
-        NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-key',
-      };
-
-      try {
-        // We can't easily test inviteExists with our mock because it creates its own client
-        // But we can verify it doesn't crash and follows the error handling pattern
-        // In a real test environment, we'd need to mock the client creation
-        expect(true).toBe(true);
-      } finally {
-        process.env = originalEnv;
-      }
-    });
-  });
 });

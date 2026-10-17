@@ -52,54 +52,20 @@ describe('POST /api/auth/login', () => {
     });
   };
 
-  it('returns 403 invite_required when user has no claimed invite and calls signOut', async () => {
-    const email = 'user@example.com';
-    const password = 'password123';
-    const userId = 'user-123';
-
-    // Mock successful sign in
-    mockSupabase.auth.signInWithPassword.mockResolvedValue({
-      data: {
-        user: { id: userId, email },
-        session: { access_token: 'token' },
-      },
-      error: null,
-    });
-
-    // Mock invites table query - no invite row found
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          maybeSingle: vi.fn().mockResolvedValue({
-            data: null,
-            error: null,
-          }),
-        }),
-      }),
-    });
-    mockSupabase.from = mockFrom;
-    mockSupabase.auth.signOut.mockResolvedValue({ error: null });
-
-    const response = await POST(createRequest({ email, password }));
+  it('returns 400 invalid_request when email or password is missing', async () => {
+    const response = await POST(createRequest({ email: 'user@example.com' }));
     const data = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(data.error.code).toBe('invite_required');
-    expect(data.error.message).toBe('You need a valid invite to access this application');
-    
-    // Verify signOut was called (security-critical side effect)
-    expect(mockSupabase.auth.signOut).toHaveBeenCalled();
-    
-    // Verify no session cookies were set
-    expect(mockCookieStore.set).not.toHaveBeenCalled();
+    expect(response.status).toBe(400);
+    expect(data.error.code).toBe('invalid_request');
+    expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
   });
 
-  it('returns 200 when user has claimed invite', async () => {
+  it('returns 200 with the user on successful sign in', async () => {
     const email = 'user@example.com';
     const password = 'password123';
     const userId = 'user-123';
 
-    // Mock successful sign in
     mockSupabase.auth.signInWithPassword.mockResolvedValue({
       data: {
         user: { id: userId, email },
@@ -107,19 +73,6 @@ describe('POST /api/auth/login', () => {
       },
       error: null,
     });
-
-    // Mock invites table query - invite row found
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          maybeSingle: vi.fn().mockResolvedValue({
-            data: { code: 'VALID-CODE' },
-            error: null,
-          }),
-        }),
-      }),
-    });
-    mockSupabase.from = mockFrom;
 
     const response = await POST(createRequest({ email, password }));
     const data = await response.json();
@@ -127,8 +80,8 @@ describe('POST /api/auth/login', () => {
     expect(response.status).toBe(200);
     expect(data.user.id).toBe(userId);
     expect(data.user.email).toBe(email);
-    
-    // Verify signOut was NOT called
+    // Plain email/password auth: no extra table access after sign-in
+    expect(mockSupabase.from).not.toHaveBeenCalled();
     expect(mockSupabase.auth.signOut).not.toHaveBeenCalled();
   });
 

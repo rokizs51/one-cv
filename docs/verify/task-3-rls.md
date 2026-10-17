@@ -9,19 +9,13 @@ Owner-operated. Do not run until the Supabase project exists and the migration h
 - [ ] Apply the migration either:
   - via CLI: `supabase link --project-ref <ref>` then `supabase db push`, OR
   - by pasting `supabase/migrations/0001_init.sql` into the Supabase SQL editor and running it.
-- [ ] Confirm in the dashboard that all 6 tables exist (`profiles`, `profile_items`, `job_descriptions`, `generated_resumes`, `invites`, `generation_quota`).
+- [ ] Confirm in the dashboard that all 5 tables exist (`profiles`, `profile_items`, `job_descriptions`, `generated_resumes`, `generation_quota`).
 
-## 2. Seed invite codes
+## 2. Invite seeding — REMOVED
 
-Run the following SQL once in the SQL editor (or via any client as service-role):
-
-```sql
-insert into public.invites (code) values
-  ('AAAAAAAAAAAA'),
-  ('BBBBBBBBBBBB');
-```
-
-- [ ] Verify 2 rows exist in `invites`.
+The invite-gated launch model was dropped 2026-10-17 by owner decision
+(open email signup instead). The `invites` table is no longer part of the
+schema; skip this section.
 
 ## 3. Create disposable test users
 

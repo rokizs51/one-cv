@@ -1,6 +1,5 @@
 import { createBrowserClient as createBrowserSupabaseClient } from '@supabase/ssr';
 import { createServerClient as createServerSupabaseClient } from '@supabase/ssr';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
@@ -32,16 +31,4 @@ export async function createServerClient(
       setAll,
     },
   });
-}
-
-/**
- * Create a Supabase client with anon key for server-side usage without session context.
- * Reads environment variables lazily at call time.
- * Use for operations that don't require user authentication (e.g., signup validation).
- */
-export function createAnonClient(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-  return createSupabaseClient(url, anonKey);
 }

@@ -1,29 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { createAnonClient } from '@/lib/db/client';
-import { inviteExists, claimInvite } from '@/lib/db/invites';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, inviteCode } = body;
+    const { email, password } = body;
 
     // Validate required fields
-    if (!email || !password || !inviteCode) {
+    if (!email || !password) {
       return NextResponse.json(
         { error: { code: 'invalid_request', message: 'Missing required fields' } },
-        { status: 400 }
-      );
-    }
-
-    // Check if invite code exists and is unclaimed
-    const anonSupa = createAnonClient();
-    const inviteValid = await inviteExists(inviteCode);
-    
-    if (!inviteValid) {
-      return NextResponse.json(
-        { error: { code: 'invalid_invite', message: 'This invite code is invalid or already used' } },
         { status: 400 }
       );
     }
@@ -56,10 +43,10 @@ export async function POST(request: Request) {
     if (signUpError) {
       // Check if user already exists - primary check via status code (422 = Unprocessable Entity)
       // Secondary check via message text as belt-and-braces fallback
-      const isUserExists = signUpError.status === 422 || 
-        signUpError.message?.includes('already registered') || 
+      const isUserExists = signUpError.status === 422 ||
+        signUpError.message?.includes('already registered') ||
         signUpError.message?.includes('User already registered');
-      
+
       if (isUserExists) {
         return NextResponse.json(
           { error: { code: 'user_exists', message: 'A user with this email already exists' } },
@@ -79,25 +66,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Try to claim the invite
-    const claimed = await claimInvite(anonSupa, inviteCode, signUpData.user.id);
-    
-    if (!claimed) {
-      // Race condition: invite was claimed between our check and now
-      // Sign out the user and return error
-      await supabase.auth.signOut();
-      return NextResponse.json(
-        { error: { code: 'invalid_invite', message: 'This invite code is no longer available' } },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
-      { 
-        user: { 
-          id: signUpData.user.id, 
-          email: signUpData.user.email 
-        } 
+      {
+        user: {
+          id: signUpData.user.id,
+          email: signUpData.user.email
+        }
       },
       { status: 201 }
     );

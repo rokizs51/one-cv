@@ -1,6 +1,6 @@
 -- 0001_init.sql
 -- ResumeTailor initial schema: profiles, profile_items, job_descriptions,
--- generated_resumes, invites, generation_quota.
+-- generated_resumes, generation_quota.
 -- Row Level Security enabled on all tables.
 
 -- ============================================================
@@ -144,65 +144,6 @@ create policy generated_resumes_owner_all
   to authenticated
   using (owner = auth.uid())
   with check (owner = auth.uid());
-
--- ============================================================
--- invites
---
--- Three explicit policies:
---   1. invites_anon_insert  (role=anon)      — INSERT: required by the
---      signup flow, which runs before the user has an authenticated session
---      and needs to register/validate an invite code.
---   2. invites_anon_select  (role=anon)      — SELECT: allows checking if
---      an invite code exists during signup validation. Codes are 12-char
---      secrets; knowing one to check existence is the launch model.
---   3. invites_self_select  (role=authenticated) — SELECT: a signed-in user
---      may only read invite rows they themselves have claimed
---      (claimed_by = auth.uid()).
---   4. invites_claim_update (role=authenticated) — UPDATE: allows a signed-in
---      user to claim an unclaimed invite (claimed_by IS NULL) by setting
---      claimed_by to their own user ID.
---
--- No DELETE policies are defined; invite lifecycle is managed by the
--- service-role client (server-side at signup), not by end-user requests.
--- ============================================================
-create table public.invites (
-  code text primary key,
-  email text,
-  claimed_by uuid references auth.users(id) on delete set null,
-  created_at timestamptz not null default now(),
-  claimed_at timestamptz
-);
-
-alter table public.invites enable row level security;
-
-create policy invites_anon_insert
-  on public.invites
-  as permissive
-  for insert
-  to anon
-  with check (true);
-
-create policy invites_anon_select
-  on public.invites
-  as permissive
-  for select
-  to anon
-  using (true);
-
-create policy invites_self_select
-  on public.invites
-  as permissive
-  for select
-  to authenticated
-  using (claimed_by = auth.uid());
-
-create policy invites_claim_update
-  on public.invites
-  as permissive
-  for update
-  to authenticated
-  using (claimed_by is null)
-  with check (claimed_by = auth.uid());
 
 -- ============================================================
 -- generation_quota

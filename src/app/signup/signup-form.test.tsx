@@ -12,50 +12,15 @@ describe('SignupForm', () => {
     cleanup(); // Clean up DOM between tests
   });
 
-  it('shows inline error when submitting without invite code', async () => {
+  it('renders only email and password — no invite field', () => {
     render(<SignupForm />);
 
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/password/i);
-    const submitButton = screen.getByRole('button', { name: /sign up/i });
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    // Leave invite code empty
-
-    fireEvent.click(submitButton);
-
-    // Should show error message
-    await waitFor(() => {
-      expect(screen.getByText(/invite code is required/i)).toBeInTheDocument();
-    });
-
-    // Should NOT call the API
-    expect(mockFetch).not.toHaveBeenCalled();
+    screen.getByLabelText(/email/i);
+    screen.getByLabelText(/password/i);
+    expect(screen.queryByLabelText(/invite/i)).not.toBeInTheDocument();
   });
 
-  it('shows inline error when invite code is only whitespace', async () => {
-    render(<SignupForm />);
-
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/password/i);
-    const inviteInput = screen.getByLabelText(/invite code/i);
-    const submitButton = screen.getByRole('button', { name: /sign up/i });
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.change(inviteInput, { target: { value: '   ' } });
-
-    fireEvent.click(submitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/invite code is required/i)).toBeInTheDocument();
-    });
-
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it('calls API when all fields are valid', async () => {
+  it('calls API with email and password only', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ user: { id: '1', email: 'test@example.com' } }),
@@ -65,12 +30,10 @@ describe('SignupForm', () => {
 
     const emailInput = screen.getByLabelText(/email/i);
     const passwordInput = screen.getByLabelText(/password/i);
-    const inviteInput = screen.getByLabelText(/invite code/i);
     const submitButton = screen.getByRole('button', { name: /sign up/i });
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.change(inviteInput, { target: { value: 'INVITE123' } });
 
     fireEvent.click(submitButton);
 
@@ -83,7 +46,6 @@ describe('SignupForm', () => {
           body: JSON.stringify({
             email: 'test@example.com',
             password: 'password123',
-            inviteCode: 'INVITE123',
           }),
         })
       );
@@ -93,24 +55,22 @@ describe('SignupForm', () => {
   it('shows error message from API response', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
-      json: () => Promise.resolve({ error: { code: 'invalid_invite', message: 'This invite code is already used.' } }),
+      json: () => Promise.resolve({ error: { code: 'user_exists', message: 'A user with this email already exists' } }),
     });
 
     render(<SignupForm />);
 
     const emailInput = screen.getByLabelText(/email/i);
     const passwordInput = screen.getByLabelText(/password/i);
-    const inviteInput = screen.getByLabelText(/invite code/i);
     const submitButton = screen.getByRole('button', { name: /sign up/i });
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    fireEvent.change(emailInput, { target: { value: 'taken@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.change(inviteInput, { target: { value: 'USED123' } });
 
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/this invite code is already used/i)).toBeInTheDocument();
+      expect(screen.getByText(/a user with this email already exists/i)).toBeInTheDocument();
     });
   });
 });

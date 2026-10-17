@@ -107,3 +107,8 @@ Two locked interpretations (my calls): exactly **one accent color**, reserved fo
 ## Open questions owned by the product owner
 
 None.
+
+## Revisions (owner decisions after this doc's draft)
+
+- **2026-10-17 — invite gating dropped.** The "Launch access model" (invite/waitlist-only at launch) is superseded: open email/password signup from day one, handled directly by Supabase Auth. The `invites` table and all signup/login invite checks are removed. The per-user 50-generation monthly cap and the server-side budget circuit breaker **stand**. Email verification (dashboard toggle, no code) can be enabled anytime now that open signup is the mode.
+- **2026-10-17 — provider gate opened.** Per the "LLM usage" constraint's provider-swappable intent: `AI_PROVIDER` now accepts `anthropic` (default) or `qwen` (Anthropic-wire-compatible endpoint via `AI_BASE_URL` + `AI_API_KEY`); the owner runs a Qwen token plan. Model tiers (cheap extraction / stronger enhance) unchanged as a rule.

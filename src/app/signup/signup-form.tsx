@@ -5,19 +5,12 @@ import { useState } from 'react';
 export default function SignupForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    // Client-side validation
-    if (!inviteCode.trim()) {
-      setError('Invite code is required');
-      return;
-    }
 
     setLoading(true);
 
@@ -28,7 +21,6 @@ export default function SignupForm() {
         body: JSON.stringify({
           email,
           password,
-          inviteCode: inviteCode.trim(),
         }),
       });
 
@@ -74,19 +66,6 @@ export default function SignupForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Invite Code
-        </label>
-        <input
-          id="inviteCode"
-          type="text"
-          value={inviteCode}
-          onChange={(e) => setInviteCode(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
