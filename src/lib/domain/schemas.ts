@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ItemType } from './types';
 
 // Job description extraction schema
 export const JdExtractionSchema = z.object({
@@ -61,3 +62,26 @@ export const LanguagePayloadSchema = z.object({
   name: z.string(),
   level: z.string(),
 }).strict();
+
+// Type → payload schema map for API validation (all schemas are .strict()).
+export const PAYLOAD_SCHEMAS: Record<ItemType, z.ZodType<{ [k: string]: unknown }>> = {
+  career_snapshot: CareerSnapshotPayloadSchema,
+  education: EducationPayloadSchema,
+  experience: ExperiencePayloadSchema,
+  project: ProjectPayloadSchema,
+  award: AwardPayloadSchema,
+  skill: SkillPayloadSchema,
+  language: LanguagePayloadSchema,
+};
+
+export const ITEM_TYPES = Object.keys(PAYLOAD_SCHEMAS) as ItemType[];
+
+// Personal info shape stored on profiles.personal (camelCase app-side;
+// the DB stores snake_case via the mapper if that ever changes).
+export const PersonalInfoSchema = z.object({
+  fullName: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().nullable(),
+  location: z.string().nullable(),
+  links: z.array(z.string()),
+});

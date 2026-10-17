@@ -50,6 +50,40 @@ export async function createItem(
 }
 
 /**
+ * Get one profile item by id.
+ * Returns null only for an absent/unauthorized row (PGRST116 — RLS reports
+ * foreign rows the same way); other database errors throw.
+ */
+export async function getItem(
+  supa: SupabaseClient,
+  itemId: string
+): Promise<ProfileItem | null> {
+  const { data, error } = await supa
+    .from('profile_items')
+    .select('*')
+    .eq('id', itemId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw error;
+  }
+  if (!data) return null;
+  return rowToProfileItem(data);
+}
+
+/**
+ * Delete a profile item by id.
+ */
+export async function deleteItem(
+  supa: SupabaseClient,
+  itemId: string
+): Promise<void> {
+  const { error } = await supa.from('profile_items').delete().eq('id', itemId);
+  if (error) throw error;
+}
+
+/**
  * Update a profile item. Null values in patch are treated as no-change.
  */
 export async function updateItem(

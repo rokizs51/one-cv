@@ -29,7 +29,7 @@ export default function LoginForm() {
       }
 
       // Redirect to home on success
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     } catch (err) {
       setError('An unexpected error occurred');
       setIsLoading(false);

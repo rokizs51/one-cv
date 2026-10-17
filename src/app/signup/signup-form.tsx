@@ -32,7 +32,7 @@ export default function SignupForm() {
       }
 
       // Success - redirect to login or dashboard
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     } catch (err) {
       setError('An error occurred. Please try again.');
     } finally {
