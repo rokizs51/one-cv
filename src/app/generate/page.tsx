@@ -1,6 +1,17 @@
+import { redirect } from 'next/navigation';
 import GenerateWizard from '@/components/generate-wizard';
+import { getSessionUser } from '@/lib/auth/session';
 
-export default function GeneratePage() {
+// Session-reading pages must block on the server so the guard can
+// redirect before anything renders (cacheComponents sanctioned opt-out).
+export const instant = false;
+
+export default async function GeneratePage() {
+  // Page-level guard (defense-in-depth alongside the proxy): this screen and
+  // its APIs are private by default.
+  const user = await getSessionUser();
+  if (!user) redirect('/login');
+
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-16 dark:bg-zinc-950">
       <div className="mx-auto w-full max-w-2xl">

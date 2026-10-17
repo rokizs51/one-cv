@@ -35,8 +35,11 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Unauthenticated routes - allow access
+  // Public routes - allow access: the landing page ('/' exactly — the page
+  // itself routes signed-in visitors to the dashboard), auth pages, and the
+  // auth API endpoints.
   if (
+    pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
     pathname.startsWith('/api/auth')
