@@ -154,6 +154,67 @@ describe('fitToPage — pinned items', () => {
     const result = fitToPage([pinned], 1);
     expect(result.overflow).toBe(false);
   });
+
+  it('sets overflow=true with mixed pinned+unpinned when pinned exceeds budget', () => {
+    // Pinned: 80 lines (> 78 budget), unpinned: 10 lines
+    const pinned = itemWithLines('pinned', 80, true);
+    pinned.item.pinned = true;
+    pinned.score = 5;
+    
+    const unpinned = itemWithLines('unpinned', 10);
+    unpinned.score = 10;
+
+    const result = fitToPage([pinned, unpinned], 1);
+    
+    // overflow must be true
+    expect(result.overflow).toBe(true);
+    
+    // pinned must be in chosen (never cut)
+    const chosenIds = result.chosen.map((s) => s.item.id);
+    expect(chosenIds).toContain('pinned');
+    
+    // unpinned must be in cuts with reason='space'
+    const unpinnedCut = result.cuts.find((c) => c.item.item.id === 'unpinned');
+    expect(unpinnedCut).toBeDefined();
+    expect(unpinnedCut?.reason).toBe('space');
+    
+    // pinned must NOT be in cuts
+    const pinnedCut = result.cuts.find((c) => c.item.item.id === 'pinned');
+    expect(pinnedCut).toBeUndefined();
+  });
+
+  it('correctly labels cut reasons when pinned overflows', () => {
+    // Pinned: 90 lines (overflow), unpinned with mixed scores
+    const pinned = itemWithLines('pinned', 90, true);
+    pinned.item.pinned = true;
+    pinned.score = 5;
+    
+    const lowScore = makeScoreed(
+      makeItem({ id: 'low', canonicalText: 'x'.repeat(640) }), // 10 lines
+      1, // below MIN_SCORE
+    );
+    
+    const highScore = itemWithLines('high', 10);
+    highScore.score = 10;
+
+    const result = fitToPage([pinned, lowScore, highScore], 1);
+    
+    // overflow must be true
+    expect(result.overflow).toBe(true);
+    
+    // low score must be cut with reason='relevance'
+    const lowCut = result.cuts.find((c) => c.item.item.id === 'low');
+    expect(lowCut).toBeDefined();
+    expect(lowCut?.reason).toBe('relevance');
+    
+    // high score must be cut with reason='space' (not relevance, since score >= MIN_SCORE)
+    const highCut = result.cuts.find((c) => c.item.item.id === 'high');
+    expect(highCut).toBeDefined();
+    expect(highCut?.reason).toBe('space');
+    
+    // pinned must be in chosen
+    expect(result.chosen.map((s) => s.item.id)).toContain('pinned');
+  });
 });
 
 describe('fitToPage — 2-page toggle', () => {
