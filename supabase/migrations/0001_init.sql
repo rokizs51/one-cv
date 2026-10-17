@@ -225,3 +225,28 @@ create policy generation_quota_owner_all
   to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+-- ============================================================
+-- month_llm_cost
+-- SECURITY DEFINER function to sum global LLM costs for a month.
+-- Bypasses RLS to allow authenticated users to query global spend.
+-- ============================================================
+create or replace function public.month_llm_cost(p_month text)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  total_cost bigint;
+begin
+  select coalesce(sum(llm_cost_micros), 0)
+  into total_cost
+  from public.generation_quota
+  where month = p_month;
+  
+  return total_cost;
+end;
+$$;
+
+grant execute on function public.month_llm_cost(text) to authenticated;

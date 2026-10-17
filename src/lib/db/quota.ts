@@ -91,3 +91,21 @@ export async function recordGeneration(
     if (insertError) throw insertError;
   }
 }
+
+/**
+ * Get global LLM cost for a specific month.
+ * Uses the month_llm_cost RPC function which sums llm_cost_micros across all users.
+ * Throws on error (same error discipline as other repos).
+ */
+export async function globalLlmCost(
+  supa: SupabaseClient,
+  month: string
+): Promise<number> {
+  const { data, error } = await supa.rpc('month_llm_cost', { p_month: month });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as number;
+}
