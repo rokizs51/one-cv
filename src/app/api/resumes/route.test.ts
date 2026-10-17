@@ -1,0 +1,88 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createSupaStub } from '@/test-helpers/supa-stub';
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(),
+}));
+
+// The GET handler calls connection() to force request-time rendering; it throws
+// outside a Next request scope, so stub it here while keeping real NextResponse.
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>();
+  return { ...actual, connection: vi.fn(async () => {}) };
+});
+
+vi.mock('@/lib/auth/session', () => ({
+  getSessionUser: vi.fn(),
+}));
+
+vi.mock('@/lib/db/client', () => ({
+  createRouteClient: vi.fn(),
+}));
+
+import { GET } from './route';
+import { getSessionUser } from '@/lib/auth/session';
+import { createRouteClient } from '@/lib/db/client';
+
+const mockGetSessionUser = vi.mocked(getSessionUser);
+const mockCreateRouteClient = vi.mocked(createRouteClient);
+
+describe('GET /api/resumes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns 401 when not authenticated', async () => {
+    mockGetSessionUser.mockResolvedValue(null);
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error.code).toBe('unauthorized');
+  });
+
+  it('returns 200 with resume list on success', async () => {
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+
+    const supa = createSupaStub({
+      from: {
+        generated_resumes: {
+          data: [
+            {
+              id: 'resume-1',
+              owner: 'user-1',
+              jd_id: 'jd-1',
+              mode: 'as_is',
+              page_limit: 1,
+              doc: {},
+              suggestions: [],
+              statuses: [],
+              user_edits: {},
+              fit: { chosen: [], cuts: [], overflow: false },
+              created_at: '2026-10-15T00:00:00Z',
+              updated_at: '2026-10-15T00:00:00Z',
+            },
+          ],
+          error: null,
+        },
+      },
+    });
+    mockCreateRouteClient.mockResolvedValue(supa as any);
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.resumes).toBeDefined();
+    expect(Array.isArray(data.resumes)).toBe(true);
+    expect(data.resumes.length).toBe(1);
+    // Summaries only — the stored doc/suggestions/fit blobs must not ship
+    // to the list view (they belong to GET /api/resumes/[id]).
+    expect(data.resumes[0]).not.toHaveProperty('doc');
+    expect(data.resumes[0]).not.toHaveProperty('suggestions');
+    expect(data.resumes[0]).not.toHaveProperty('fit');
+    expect(data.resumes[0].id).toBeTruthy();
+    expect(data.resumes[0].mode).toBe('as_is');
+  });
+});
