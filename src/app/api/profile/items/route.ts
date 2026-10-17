@@ -6,6 +6,7 @@ import { getOrCreateProfile } from '@/lib/db/profiles';
 import { listItems, createItem } from '@/lib/db/items';
 import { PAYLOAD_SCHEMAS, ITEM_TYPES } from '@/lib/domain/schemas';
 import { canonicalTextFor } from '@/lib/domain/canonical';
+import { fieldHint } from '@/lib/domain/validation';
 import type { ItemType } from '@/lib/domain/types';
 
 export async function GET() {
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
         {
           error: {
             code: 'invalid_payload',
-            message: 'Some fields are missing or in the wrong format. Check the form and try again.',
+            message: fieldHint(parsed.error.issues),
           },
         },
         { status: 400 }
@@ -79,6 +80,25 @@ export async function POST(request: Request) {
     const cookieStore = await cookies();
     const supabase = await createRouteClient(cookieStore);
     const profile = await getOrCreateProfile(supabase, user.id);
+
+    // Exactly one career snapshot, enforced server-side (the headline CV
+    // channel is singular: orchestrate renders the first as doc.summary and
+    // additional ones would be invisible-but-editable).
+    if (type === 'career_snapshot') {
+      const existing = await listItems(supabase, profile.id);
+      if (existing.some((i) => i.type === 'career_snapshot')) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'snapshot_exists',
+              message: 'You already have a career summary. Edit it instead of adding another.',
+            },
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const item = await createItem(supabase, profile.id, {
       type: type as ItemType,
       payload: parsed.data,

@@ -29,8 +29,10 @@ export default function ItemEditor({ item, onPatch, onDelete }: ItemEditorProps)
     setBusy(true);
     try {
       await fn();
-    } catch {
-      setError('Could not save. Please try again.');
+    } catch (e) {
+      // Surface the server's plain-language field hint when there is one
+      // (e.g. "Please check these fields: end"); only mask truly unknown fails.
+      setError(e instanceof Error && e.message ? e.message : 'Could not save. Please try again.');
     } finally {
       setBusy(false);
     }

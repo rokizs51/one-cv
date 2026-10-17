@@ -5,6 +5,7 @@ import { getSessionUser } from '@/lib/auth/session';
 import { getOrCreateProfile, updatePersonal } from '@/lib/db/profiles';
 import type { PersonalInfo } from '@/lib/db/profiles';
 import { PersonalInfoSchema } from '@/lib/domain/schemas';
+import { fieldHint } from '@/lib/domain/validation';
 
 export async function GET() {
   // Session read → request-only (see resumes/route.ts for rationale).
@@ -58,7 +59,7 @@ export async function PATCH(request: Request) {
         {
           error: {
             code: 'invalid_payload',
-            message: 'Your name and a valid email are required. Phone and location are optional.',
+            message: fieldHint(parsed.error.issues),
           },
         },
         { status: 400 }
@@ -67,6 +68,10 @@ export async function PATCH(request: Request) {
 
     const cookieStore = await cookies();
     const supabase = await createRouteClient(cookieStore);
+    // Ensure the row exists FIRST: updatePersonal on a missing profile would
+    // match 0 rows without error, the following insert would write the empty
+    // default, and the submitted data would vanish silently.
+    await getOrCreateProfile(supabase, user.id);
     await updatePersonal(supabase, user.id, parsed.data as PersonalInfo);
     const profile = await getOrCreateProfile(supabase, user.id);
 

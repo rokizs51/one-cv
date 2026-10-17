@@ -4,29 +4,16 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import VersionList from '@/components/dashboard/version-list';
 import type { ItemType, ProfileItem } from '@/lib/domain/types';
-import { TYPE_LABELS } from '@/components/profile/fields';
+import { TYPE_FIELDS, TYPE_LABELS } from '@/components/profile/fields';
+import type { ResumeSummary } from '@/lib/db/resumes';
 
-interface ResumeRow {
-  id: string;
-  mode: 'as_is' | 'enhance';
-  pageLimit: 1 | 2;
-  jdId: string;
-  createdAt: string;
-}
-
-const CHECKED_TYPES: ItemType[] = [
-  'career_snapshot',
-  'experience',
-  'project',
-  'education',
-  'skill',
-  'award',
-  'language',
-];
+// Every section counts toward completeness — derived, not re-listed, so a
+// new ItemType can't silently skip the panel (TYPE_FIELDS is Record<ItemType>).
+const CHECKED_TYPES = Object.keys(TYPE_FIELDS) as ItemType[];
 
 export default function DashboardPage() {
   const [items, setItems] = useState<ProfileItem[] | null>(null);
-  const [resumes, setResumes] = useState<ResumeRow[] | null>(null);
+  const [resumes, setResumes] = useState<ResumeSummary[] | null>(null);
 
   useEffect(() => {
     Promise.all([fetch('/api/profile/items'), fetch('/api/resumes')])

@@ -89,7 +89,9 @@ export async function deleteItem(
 export async function updateItem(
   supa: SupabaseClient,
   itemId: string,
-  patch: Partial<Pick<ProfileItem, 'payload' | 'canonicalText' | 'pinned' | 'position'>>
+  patch: Partial<Pick<ProfileItem, 'payload' | 'canonicalText' | 'pinned' | 'position'>> & {
+    provenance?: ProfileItem['provenance'];
+  }
 ): Promise<void> {
   const row: Record<string, unknown> = {};
 
@@ -97,6 +99,7 @@ export async function updateItem(
   if (patch.canonicalText !== undefined) row.canonical_text = patch.canonicalText;
   if (patch.pinned !== undefined) row.pinned = patch.pinned;
   if (patch.position !== undefined) row.position = patch.position;
+  if (patch.provenance !== undefined) row.provenance = patch.provenance;
 
   const { error } = await supa.from('profile_items').update(row).eq('id', itemId);
   if (error) throw error;

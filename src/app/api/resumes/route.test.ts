@@ -77,5 +77,12 @@ describe('GET /api/resumes', () => {
     expect(data.resumes).toBeDefined();
     expect(Array.isArray(data.resumes)).toBe(true);
     expect(data.resumes.length).toBe(1);
+    // Summaries only — the stored doc/suggestions/fit blobs must not ship
+    // to the list view (they belong to GET /api/resumes/[id]).
+    expect(data.resumes[0]).not.toHaveProperty('doc');
+    expect(data.resumes[0]).not.toHaveProperty('suggestions');
+    expect(data.resumes[0]).not.toHaveProperty('fit');
+    expect(data.resumes[0].id).toBeTruthy();
+    expect(data.resumes[0].mode).toBe('as_is');
   });
 });

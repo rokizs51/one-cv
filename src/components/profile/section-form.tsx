@@ -28,8 +28,8 @@ export default function SectionForm({ type, onCreate }: SectionFormProps) {
       await onCreate(formToPayload(defs, values));
       setValues({});
       setOpen(false);
-    } catch {
-      setError('Could not add this entry. Check the fields and try again.');
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : 'Could not add this entry. Check the fields and try again.');
     } finally {
       setBusy(false);
     }

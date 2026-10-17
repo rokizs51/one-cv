@@ -21,6 +21,24 @@ export interface GeneratedResume extends ResumeFields {
 }
 
 /**
+ * List-view projection: everything a version row needs WITHOUT the doc /
+ * suggestions / fit blobs (those only matter on the resume page itself,
+ * which fetches by id). Keeps the dashboard response flat-size as usage
+ * grows and gives every list consumer one shared type.
+ */
+export interface ResumeSummary {
+  id: string;
+  jdId: string;
+  mode: GenMode;
+  pageLimit: 1 | 2;
+  createdAt: string;
+}
+
+export function toSummary(r: GeneratedResume): ResumeSummary {
+  return { id: r.id, jdId: r.jdId, mode: r.mode, pageLimit: r.pageLimit, createdAt: r.createdAt };
+}
+
+/**
  * Save a new generated resume.
  */
 export async function saveResume(

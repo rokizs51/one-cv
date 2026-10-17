@@ -62,7 +62,7 @@ export default function ProfileEditor() {
 
   const deleteItem = async (id: string) => {
     const res = await fetch(`/api/profile/items/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('delete failed');
+    if (!res.ok) throw new Error((await res.json().catch(() => (null)))?.error?.message ?? 'delete failed');
     await load();
   };
 
@@ -140,6 +140,11 @@ function PersonalSection({ personal, onSaved }: { personal: Personal; onSaved: (
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
+  const edit = (key: keyof typeof form, v: string) => {
+    setForm((p) => ({ ...p, [key]: v }));
+    setSaved(false); // an unsaved edit invalidates the previous 'Saved.'
+  };
+
   const save = async () => {
     setBusy(true);
     setError('');
@@ -159,7 +164,14 @@ function PersonalSection({ personal, onSaved }: { personal: Personal; onSaved: (
         }),
       });
       if (!res.ok) {
-        setError('Please enter at least your name and a valid email.');
+        // Don't blame the user's input for an auth/server failure: use the
+        // server's message when present, generic text otherwise.
+        const data = await res.json().catch(() => null);
+        if (res.status === 401) {
+          setError('Your session expired — sign in again and retry.');
+          return;
+        }
+        setError(data?.error?.message || 'Could not save. Please try again.');
         return;
       }
       setSaved(true);
@@ -180,7 +192,7 @@ function PersonalSection({ personal, onSaved }: { personal: Personal; onSaved: (
         id={`personal-${key}`}
         type={type}
         value={form[key]}
-        onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+        onChange={(e) => edit(key, e.target.value)}
         className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
       />
     </div>

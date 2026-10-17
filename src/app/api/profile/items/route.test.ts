@@ -125,4 +125,40 @@ describe('POST /api/profile/items', () => {
     const res = await post({ type: 'skill', payload: { name: 'Go' } });
     expect(res.status).toBe(401);
   });
+
+  it('enforces the single career_snapshot server-side with 409', async () => {
+    const supa = createSupaStub({
+      from: {
+        profiles: profileRow,
+        profile_items: { data: [itemRow({ id: 'snap-1', type: 'career_snapshot', canonical_text: 'Already here' })], error: null },
+      },
+    });
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await post({ type: 'career_snapshot', payload: { text: 'A second headline' } });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe('snapshot_exists');
+    expect(supa.calls.from.find((c) => c.method === 'insert')).toBeUndefined();
+  });
+
+  it('accepts a current job with an empty end date (end: "" is meaningful)', async () => {
+    const supa = createSupaStub({
+      from: {
+        profiles: profileRow,
+        profile_items: {
+          data: itemRow({ id: 'exp-1', type: 'experience', payload: { company: 'Acme', role: 'Dev', start: '2024', end: '', bullets: [] }, canonical_text: 'Dev — Acme (2024–present)' }),
+          error: null,
+        },
+      },
+    });
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await post({
+      type: 'experience',
+      payload: { company: 'Acme', role: 'Dev', start: '2024', end: '', bullets: [] },
+    });
+
+    expect(res.status).toBe(201);
+  });
 });

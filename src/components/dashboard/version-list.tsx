@@ -1,12 +1,6 @@
 'use client';
 
-interface ResumeRow {
-  id: string;
-  mode: 'as_is' | 'enhance';
-  pageLimit: 1 | 2;
-  jdId: string;
-  createdAt: string;
-}
+import type { ResumeSummary } from '@/lib/db/resumes';
 
 const MODE_LABEL: Record<'as_is' | 'enhance', string> = {
   as_is: 'As-is',
@@ -18,7 +12,7 @@ const MODE_LABEL: Record<'as_is' | 'enhance', string> = {
  * direction: quiet rows, date + mode + page count, link to open it.
  * (The /resume/[id] screen lands with Task 13; until then rows 404.)
  */
-export default function VersionList({ resumes }: { resumes: ResumeRow[] }) {
+export default function VersionList({ resumes }: { resumes: ResumeSummary[] }) {
   if (resumes.length === 0) {
     return (
       <p className="text-sm text-zinc-500 dark:text-zinc-400">

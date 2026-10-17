@@ -44,6 +44,14 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // API requests must reach their route handlers, which enforce the session
+  // themselves and return 401 JSON. Redirecting here instead would 307 a POST
+  // to /login (→ 405 HTML), making every client-side 401 branch — draft
+  // saving, re-login nudges (Review Focus 4) — unreachable.
+  if (!user && pathname.startsWith('/api')) {
+    return supabaseResponse;
+  }
+
   // If user is not authenticated and trying to access protected route, redirect to login
   if (!user) {
     const url = request.nextUrl.clone();

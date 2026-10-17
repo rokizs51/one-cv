@@ -93,14 +93,15 @@ export function formToPayload(defs: FieldDef[], values: FormValues): Record<stri
     } else if (def.kind === 'list') {
       out[def.key] = raw ? raw.split(',').map((s) => s.trim()).filter((s) => s !== '') : [];
     } else if (def.kind === 'number') {
-      if (raw === '') {
-        if (def.optional) continue;
-        out[def.key] = NaN; // let schema validation reject it loudly
-      } else {
+      // Empty number → omit the key entirely: the strict schema then fails
+      // with a Required error naming that field (surfaced to the user).
+      // Never NaN — JSON silently coerces it to null and hides the cause.
+      if (raw !== '' && Number.isFinite(Number(raw))) {
         out[def.key] = Number(raw);
       }
     } else {
-      if (raw === '' && def.optional) continue;
+      // Text/textarea keep '' — an empty `end` is meaningful ("current job"),
+      // and ExperiencePayloadSchema requires the key to be present.
       out[def.key] = raw;
     }
   }

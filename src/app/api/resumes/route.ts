@@ -2,7 +2,7 @@ import { NextResponse, connection } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
-import { listResumes } from '@/lib/db/resumes';
+import { listResumes, toSummary } from '@/lib/db/resumes';
 
 export async function GET() {
   // This reads the session cookie, so it's request-only: terminate any build
@@ -23,7 +23,8 @@ export async function GET() {
     const supabase = await createRouteClient(cookieStore);
 
     const resumes = await listResumes(supabase, user.id);
-    return NextResponse.json({ resumes }, { status: 200 });
+    // Summaries only: full docs belong to the by-id endpoint (see ResumeSummary).
+    return NextResponse.json({ resumes: resumes.map(toSummary) }, { status: 200 });
   } catch (error) {
     console.error('Resume list error:', error);
     return NextResponse.json(

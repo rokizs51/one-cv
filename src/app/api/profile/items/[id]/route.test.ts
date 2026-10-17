@@ -128,6 +128,28 @@ describe('PATCH /api/profile/items/:id', () => {
     expect(patch.canonicalText).toBe('Lead — Acme (2022–2025)\n• Ran Y');
   });
 
+  it('payload edit on an Enhanced item rebases the provenance chain', async () => {
+    // Stale snapshots must not survive a content edit: a later Revert would
+    // restore pre-edit text (silent destruction).
+    mockGetItem.mockResolvedValue(
+      storedItem({
+        provenance: [
+          { text: 'Dev — Acme (2022–2025)\n• Shipped X', originalText: 'original words', fromResumeId: 'r1', at: '2026-10-01T00:00:00Z' },
+        ],
+      })
+    );
+
+    const res = await PATCH(
+      req({ payload: { company: 'Acme', role: 'Lead', start: '2022', end: '2025', bullets: ['Ran Y'] } }),
+      makeContext(ID)
+    );
+
+    expect(res.status).toBe(200);
+    const patch = mockUpdateItem.mock.calls[0][2];
+    expect(patch.canonicalText).toBe('Lead — Acme (2022–2025)\n• Ran Y');
+    expect(patch.provenance).toEqual([]);
+  });
+
   it('explicit canonicalText wins over re-derivation (manual line edit)', async () => {
     mockGetItem.mockResolvedValue(storedItem({ type: 'skill' }));
 
@@ -173,6 +195,15 @@ describe('DELETE /api/profile/items/:id', () => {
     mockGetItem.mockResolvedValue(null);
     const res = await del();
     expect(res.status).toBe(404);
+    expect(mockDeleteItem).not.toHaveBeenCalled();
+  });
+
+  it('refuses to delete the career snapshot (edit-only, server-enforced)', async () => {
+    mockGetItem.mockResolvedValue(storedItem({ type: 'career_snapshot', payload: { text: 'Who I am' } }));
+
+    const res = await del();
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe('cannot_delete');
     expect(mockDeleteItem).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,8 @@ import { getSessionUser } from '@/lib/auth/session';
 import { getItem, updateItem, deleteItem, revertText } from '@/lib/db/items';
 import { PAYLOAD_SCHEMAS } from '@/lib/domain/schemas';
 import { canonicalTextFor } from '@/lib/domain/canonical';
+import { fieldHint } from '@/lib/domain/validation';
+import type { ProfileItem } from '@/lib/domain/types';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -63,6 +65,7 @@ export async function PATCH(
       canonicalText?: string;
       pinned?: boolean;
       position?: number;
+      provenance?: ProfileItem['provenance'];
     } = {};
 
     if (body.payload !== undefined) {
@@ -72,7 +75,7 @@ export async function PATCH(
           {
             error: {
               code: 'invalid_payload',
-              message: 'Some fields are missing or in the wrong format. Check the form and try again.',
+              message: fieldHint(parsed.error.issues),
             },
           },
           { status: 400 }
@@ -87,6 +90,15 @@ export async function PATCH(
           : canonicalTextFor(stored.type, parsed.data);
     } else if (typeof body.canonicalText === 'string' && body.canonicalText.trim()) {
       patch.canonicalText = body.canonicalText.trim();
+    }
+
+    // Provenance invariant: the chain snapshots the wording an accepted
+    // rewrite replaced. A content edit (payload or manual text) makes those
+    // snapshots stale — keeping them would let a later Revert restore text
+    // from before this edit and silently undo it. Editing rebases the chain.
+    const editingContent = patch.payload !== undefined || patch.canonicalText !== undefined;
+    if (editingContent && stored.provenance.length > 0) {
+      patch.provenance = [];
     }
 
     if (typeof body.pinned === 'boolean') {
@@ -144,6 +156,20 @@ export async function DELETE(
       return NextResponse.json(
         { error: { code: 'not_found', message: 'Entry not found' } },
         { status: 404 }
+      );
+    }
+
+    // The headline channel is singular and required-by-design; the snapshot
+    // is edited, never deleted (mirrors the POST single-snapshot guard).
+    if (stored.type === 'career_snapshot') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'cannot_delete',
+            message: 'Your career summary can be edited but not removed — every CV headline is built from it.',
+          },
+        },
+        { status: 400 }
       );
     }
 
