@@ -102,7 +102,7 @@ describe('Repository error handling', () => {
     it('updateResumeFields throws on database error', async () => {
       const supa = createErrorClient(dbError);
       await expect(
-        updateResumeFields(supa, 'resume-1', { title: 'New Title' })
+        updateResumeFields(supa, 'resume-1', { userEdits: { 'item-1': 'Edited bullet text' } })
       ).rejects.toThrow('Database error');
     });
   });

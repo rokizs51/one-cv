@@ -5,6 +5,13 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
 
+// The GET handler calls connection() to force request-time rendering; it throws
+// outside a Next request scope, so stub it here while keeping real NextResponse.
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>();
+  return { ...actual, connection: vi.fn(async () => {}) };
+});
+
 vi.mock('@/lib/auth/session', () => ({
   getSessionUser: vi.fn(),
 }));

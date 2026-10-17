@@ -4,7 +4,7 @@ import { isSchemaParseError } from './client';
 
 describe('isSchemaParseError', () => {
   it('returns true for JSONParseError', () => {
-    const error = new JSONParseError({ text: 'invalid json', message: 'Parse failed' });
+    const error = new JSONParseError({ text: 'invalid json', cause: new Error('Parse failed') });
     expect(isSchemaParseError(error)).toBe(true);
   });
 
@@ -17,7 +17,10 @@ describe('isSchemaParseError', () => {
   });
 
   it('returns true for NoObjectGeneratedError', () => {
-    const error = new NoObjectGeneratedError({ message: 'No object generated' });
+    // This constructor demands SDK-internal response/usage/finishReason objects;
+    // the test only checks instanceof-based classification, so create a real
+    // instance without coupling the test to those internals.
+    const error = Object.create(NoObjectGeneratedError.prototype) as NoObjectGeneratedError;
     expect(isSchemaParseError(error)).toBe(true);
   });
 

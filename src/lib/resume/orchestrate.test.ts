@@ -5,6 +5,7 @@ import { makeFakeGenAI } from '@/lib/ai/fake';
 import { createSupaStub } from '@/test-helpers/supa-stub';
 import type { ProfileItem, JdExtraction } from '@/lib/domain/types';
 import type { PersonalInfo } from '@/lib/db/profiles';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 function makeItem(overrides: Partial<ProfileItem> & { id: string; type: ProfileItem['type'] }): ProfileItem {
   return {
@@ -19,15 +20,21 @@ function makeItem(overrides: Partial<ProfileItem> & { id: string; type: ProfileI
   };
 }
 
-function makeDeps(overrides?: Partial<OrchestrateDeps>): OrchestrateDeps {
+// The test double (SupaStub) deliberately does not structurally satisfy
+// SupabaseClient; callers pass the stub (to inspect .calls) and it is cast
+// once at the deps boundary.
+function makeDeps(
+  overrides?: Partial<Omit<OrchestrateDeps, 'supa'>> & { supa?: unknown }
+): OrchestrateDeps {
+  const { supa, ...rest } = overrides ?? {};
   return {
-    supa: createSupaStub(),
+    supa: (supa ?? createSupaStub()) as unknown as SupabaseClient,
     ai: makeFakeGenAI(),
     now: new Date('2026-10-15'),
     user: { id: 'user-1', email: 'test@example.com' },
     enhanceModel: 'claude-sonnet-test',
     monthlyCostCeilingMicros: 1000000,
-    ...overrides,
+    ...rest,
   };
 }
 

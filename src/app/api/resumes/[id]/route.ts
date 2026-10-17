@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, connection } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
@@ -8,6 +8,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Session-cookie read is request-only; stop build prerender here (before the
+  // try/catch) so Next's prerender-termination signal isn't caught as a 500.
+  await connection();
   try {
     // 1. Session check
     const user = await getSessionUser();

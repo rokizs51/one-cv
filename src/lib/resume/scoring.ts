@@ -202,10 +202,12 @@ export function isEarlyCareer(items: ProfileItem[]): boolean {
     const end = item.payload.end;
     // No end date means ongoing → not early career (this item violates the rule)
     if (!end) return false;
-    
-    const endYear = typeof end === 'string' ? parseInt(end, 10) : end;
+
+    // payload.end may be a numeric year or a numeric string; coerce to number.
+    const endYear =
+      typeof end === 'number' ? end : typeof end === 'string' ? parseInt(end, 10) : NaN;
     if (isNaN(endYear)) return false;
-    
+
     // End year < current year - 2 means ended more than 2 years ago (stale)
     return endYear < currentYear - 2;
   });
@@ -214,10 +216,16 @@ export function isEarlyCareer(items: ProfileItem[]): boolean {
   const recentGraduate = educationItems.some((item) => {
     const gradYear = item.payload.endYear;
     if (!gradYear) return false;
-    
-    const year = typeof gradYear === 'string' ? parseInt(gradYear, 10) : gradYear;
+
+    // payload.endYear may be a numeric year or a numeric string; coerce to number.
+    const year =
+      typeof gradYear === 'number'
+        ? gradYear
+        : typeof gradYear === 'string'
+          ? parseInt(gradYear, 10)
+          : NaN;
     if (isNaN(year)) return false;
-    
+
     // Graduated within 3 years
     return year >= currentYear - 3;
   });
