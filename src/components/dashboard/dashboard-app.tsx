@@ -33,7 +33,7 @@ export default function DashboardApp() {
 
   if (!items || !resumes) {
     return (
-      <main className="min-h-screen bg-zinc-50 px-4 py-16 dark:bg-zinc-950">
+      <main className="px-4 py-16">
         <div className="mx-auto max-w-2xl text-sm text-zinc-500">Loading…</div>
       </main>
     );
@@ -42,7 +42,7 @@ export default function DashboardApp() {
   const missing = CHECKED_TYPES.filter((t) => !items.some((i) => i.type === t));
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-16 dark:bg-zinc-950">
+    <main className="px-4 py-16">
       <div className="mx-auto w-full max-w-2xl space-y-10">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>

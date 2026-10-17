@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import DashboardApp from '@/components/dashboard/dashboard-app';
+import TopBar from '@/components/top-bar';
 import { getSessionUser } from '@/lib/auth/session';
 
 // Session-reading pages must block on the server so the guard can
@@ -12,5 +13,10 @@ export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  return <DashboardApp />;
+  return (
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <TopBar />
+      <DashboardApp />
+    </div>
+  );
 }
