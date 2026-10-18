@@ -5,6 +5,12 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
 
+// getSessionUser marks the render request-time via connection() (Cache
+// Components prerender guard); outside a real request it would throw.
+vi.mock('next/server', () => ({
+  connection: vi.fn(async () => {}),
+}));
+
 // Mock the Supabase client
 vi.mock('@/lib/db/client', () => ({
   createRouteClient: vi.fn(),
