@@ -50,6 +50,27 @@ export async function createItem(
 }
 
 /**
+ * Create many items in a single insert — all rows land or none do.
+ */
+export async function createItems(
+  supa: SupabaseClient,
+  profileId: string,
+  inputs: { type: ItemType; payload: Record<string, unknown>; canonicalText: string }[]
+): Promise<ProfileItem[]> {
+  const rows = inputs.map((input) => ({
+    profile_id: profileId,
+    type: input.type,
+    payload: input.payload,
+    canonical_text: input.canonicalText,
+    position: 0,
+  }));
+
+  const { data, error } = await supa.from('profile_items').insert(rows).select('*');
+  if (error) throw error;
+  return (data ?? []).map(rowToProfileItem);
+}
+
+/**
  * Get one profile item by id.
  * Returns null only for an absent/unauthorized row (PGRST116 — RLS reports
  * foreign rows the same way); other database errors throw.

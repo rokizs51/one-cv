@@ -25,6 +25,10 @@ export const TYPE_LABELS: Record<ItemType, string> = {
   language: 'Language',
 };
 
+// CV skill-level dropdown, ordered. Stored verbatim in payload.level and
+// shown in canonical text as "Name (Advanced)".
+export const SKILL_LEVELS = ['Basic', 'Novice', 'Intermediate', 'Advanced', 'Expert'];
+
 export const TYPE_FIELDS: Record<ItemType, FieldDef[]> = {
   career_snapshot: [
     { key: 'text', label: 'Career summary', kind: 'textarea' },

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { getOrCreateProfile } from '@/lib/db/profiles';
-import { listItems, createItem } from '@/lib/db/items';
+import { listItems, createItem, createItems } from '@/lib/db/items';
 import { PAYLOAD_SCHEMAS, ITEM_TYPES } from '@/lib/domain/schemas';
 import { canonicalTextFor } from '@/lib/domain/canonical';
 import { fieldHint } from '@/lib/domain/validation';
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       );
     }
 
-    let body: { type?: unknown; payload?: unknown };
+    let body: { type?: unknown; payload?: unknown; payloads?: unknown };
     try {
       body = await request.json();
     } catch {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { type, payload } = body;
+    const { type, payload, payloads } = body;
     if (typeof type !== 'string' || !(ITEM_TYPES as string[]).includes(type)) {
       return NextResponse.json(
         { error: { code: 'invalid_type', message: 'Unknown entry type' } },
@@ -64,17 +64,39 @@ export async function POST(request: Request) {
       );
     }
 
-    const parsed = PAYLOAD_SCHEMAS[type as ItemType].safeParse(payload ?? {});
-    if (!parsed.success) {
+    // Batch shape { type, payloads: [...] } (payloads wins if both are sent)
+    // lets the skills queue save everything in one call.
+    // shortcut: cap is 100/batch, raise it if paste-in flows need more.
+    const isBatch = payloads !== undefined;
+    if (isBatch && (!Array.isArray(payloads) || payloads.length === 0 || payloads.length > 100)) {
       return NextResponse.json(
-        {
-          error: {
-            code: 'invalid_payload',
-            message: fieldHint(parsed.error.issues),
-          },
-        },
+        { error: { code: 'invalid_request', message: 'payloads must be an array of 1-100 entries' } },
         { status: 400 }
       );
+    }
+    if (isBatch && type === 'career_snapshot') {
+      return NextResponse.json(
+        { error: { code: 'invalid_request', message: 'Career summary is added one at a time' } },
+        { status: 400 }
+      );
+    }
+
+    const rawList = isBatch ? (payloads as unknown[]) : [payload ?? {}];
+    const parsedList: Record<string, unknown>[] = [];
+    for (let i = 0; i < rawList.length; i++) {
+      const parsed = PAYLOAD_SCHEMAS[type as ItemType].safeParse(rawList[i]);
+      if (!parsed.success) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'invalid_payload',
+              message: isBatch ? `Entry ${i + 1}: ${fieldHint(parsed.error.issues)}` : fieldHint(parsed.error.issues),
+            },
+          },
+          { status: 400 }
+        );
+      }
+      parsedList.push(parsed.data);
     }
 
     const cookieStore = await cookies();
@@ -99,10 +121,23 @@ export async function POST(request: Request) {
       }
     }
 
+    if (isBatch) {
+      const items = await createItems(
+        supabase,
+        profile.id,
+        parsedList.map((data) => ({
+          type: type as ItemType,
+          payload: data,
+          canonicalText: canonicalTextFor(type as ItemType, data),
+        }))
+      );
+      return NextResponse.json({ items }, { status: 201 });
+    }
+
     const item = await createItem(supabase, profile.id, {
       type: type as ItemType,
-      payload: parsed.data,
-      canonicalText: canonicalTextFor(type as ItemType, parsed.data),
+      payload: parsedList[0],
+      canonicalText: canonicalTextFor(type as ItemType, parsedList[0]),
     });
 
     return NextResponse.json({ item }, { status: 201 });

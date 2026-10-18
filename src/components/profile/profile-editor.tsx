@@ -5,6 +5,7 @@ import { CheckCircle } from '@phosphor-icons/react';
 import type { ItemType, ProfileItem } from '@/lib/domain/types';
 import ItemEditor from './item-editor';
 import SectionForm from './section-form';
+import SkillsSection, { type SkillDraft } from './skills-section';
 import { TYPE_LABELS } from './fields';
 import Card, { SectionHeading } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -79,6 +80,16 @@ export default function ProfileEditor() {
     await load();
   };
 
+  const createSkillBatch = async (payloads: SkillDraft[]) => {
+    const res = await fetch('/api/profile/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'skill', payloads }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => null))?.error?.message ?? 'create failed');
+    await load();
+  };
+
   if (loadError) {
     return (
       <p role="alert" className="rounded-2xl bg-wash-red px-4 py-3 text-sm text-tone-red">
@@ -109,6 +120,27 @@ export default function ProfileEditor() {
 
       {SECTION_ORDER.map((type) => {
         const sectionItems = byType(type);
+        // Skills use a dedicated compact editor: one card with a queue that
+        // saves all new skills in a single batch call (the generic per-item
+        // cards made this section vertically huge for real skill lists).
+        if (type === 'skill') {
+          return (
+            <section key={type}>
+              <SectionHeading className="mb-2">Skills</SectionHeading>
+              {sectionItems.length === 0 && (
+                <p className="mb-3 text-sm text-mute">
+                  Nothing here yet — add what applies to you.
+                </p>
+              )}
+              <SkillsSection
+                items={sectionItems}
+                onPatch={patchItem}
+                onDelete={deleteItem}
+                onCreateBatch={createSkillBatch}
+              />
+            </section>
+          );
+        }
         return (
           <section key={type}>
             <SectionHeading className="mb-2">{TYPE_LABELS[type]}</SectionHeading>

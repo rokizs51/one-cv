@@ -142,6 +142,49 @@ describe('POST /api/profile/items', () => {
     expect(supa.calls.from.find((c) => c.method === 'insert')).toBeUndefined();
   });
 
+  it('creates a whole batch in one insert and returns 201', async () => {
+    const rows = [
+      itemRow(),
+      itemRow({ id: 'item-2', payload: { name: 'Rust', level: 'Expert' }, canonical_text: 'Rust (Expert)' }),
+    ];
+    const supa = createSupaStub({
+      from: { profiles: profileRow, profile_items: { data: rows, error: null } },
+    });
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await post({
+      type: 'skill',
+      payloads: [{ name: 'Go', level: 'advanced' }, { name: 'Rust', level: 'Expert' }],
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(data.items).toHaveLength(2);
+    const inserts = supa.calls.from.filter((c) => c.method === 'insert');
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0].args.map((r: Record<string, unknown>) => r.canonical_text)).toEqual([
+      'Go (advanced)',
+      'Rust (Expert)',
+    ]);
+  });
+
+  it('rejects a batch whose entry fails the schema and inserts nothing', async () => {
+    const supa = createSupaStub({ from: { profiles: profileRow } });
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await post({ type: 'skill', payloads: [{ name: 'Go' }, {}] });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error.code).toBe('invalid_payload');
+    expect(data.error.message).toContain('Entry 2');
+    expect(supa.calls.from.find((c) => c.method === 'insert')).toBeUndefined();
+  });
+
+  it('rejects an empty batch and a career_snapshot batch with 400', async () => {
+    expect((await post({ type: 'skill', payloads: [] })).status).toBe(400);
+    expect((await post({ type: 'career_snapshot', payloads: [{ text: 'a' }, { text: 'b' }] })).status).toBe(400);
+  });
+
   it('accepts a current job with an empty end date (end: "" is meaningful)', async () => {
     const supa = createSupaStub({
       from: {
