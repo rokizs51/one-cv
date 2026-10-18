@@ -1,26 +1,172 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------
+   Design tokens — "soft minimalist SaaS" (owner UI direction).
+   Depth comes from bg shifts + thin borders, not shadows.
+   Every component consumes these semantic vars; light/dark parity is
+   defined here only (no per-component dark: hex values).
+   ------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* neutrals */
+  --background: #f8f9fa;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --line: #e5e7eb;
+  --line-2: #d1d5db;
+  --ink: #111827;
+  --mute: #6b7280;
+  --faint: #9ca3af;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* primary — vibrant blue */
+  --primary: #2563eb;
+  --primary-press: #1d4ed8;
+  --primary-ink: #ffffff;
+
+  /* thematic accents: vibrant indicator + pastel wash per category.
+     fg/bg pairs are contrast-checked (>=4.5:1) in light mode. */
+  --tone-blue: #1d4ed8;
+  --wash-blue: #e0edff;
+  --tone-violet: #6d28d9;
+  --wash-violet: #ede9fe;
+  --tone-teal: #0f766e;
+  --wash-teal: #ccfbf1;
+  --tone-coral: #c2410c;
+  --wash-coral: #ffedd5;
+  --tone-pink: #be185d;
+  --wash-pink: #fce7f3;
+  --tone-amber: #92400e;
+  --wash-amber: #fef3c7;
+  --tone-red: #dc2626;
+  --wash-red: #fee2e2;
+  --tone-green: #15803d;
+  --wash-green: #dcfce7;
+
+  /* saturated bar fills (non-text — 3:1 against surface) */
+  --bar-blue: #3b82f6;
+  --bar-violet: #8b5cf6;
+  --bar-teal: #14b8a6;
+  --bar-coral: #f97316;
+  --bar-pink: #ec4899;
+  --bar-amber: #f59e0b;
+  --bar-green: #22c55e;
+  --bar-red: #ef4444;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f1216;
+    --surface: #171b21;
+    --surface-2: #1f242c;
+    --line: #2a3038;
+    --line-2: #3b434e;
+    --ink: #f3f4f6;
+    --mute: #9ca3af;
+    --faint: #6b7280;
+
+    --primary: #3b82f6;
+    --primary-press: #60a5fa;
+    --primary-ink: #ffffff;
+
+    /* dark mode uses desaturated/lower-luminance variants, not inversions */
+    --tone-blue: #93c5fd;
+    --wash-blue: #1c2a42;
+    --tone-violet: #c4b5fd;
+    --wash-violet: #2a2140;
+    --tone-teal: #5eead4;
+    --wash-teal: #12332f;
+    --tone-coral: #fdba74;
+    --wash-coral: #3a2413;
+    --tone-pink: #f9a8d4;
+    --wash-pink: #3a1a2b;
+    --tone-amber: #fcd34d;
+    --wash-amber: #3a2b12;
+    --tone-red: #f87171;
+    --wash-red: #3c1a1a;
+    --tone-green: #86efac;
+    --wash-green: #14321e;
+
+    --bar-blue: #2f6fd6;
+    --bar-violet: #7a52d6;
+    --bar-teal: #12998a;
+    --bar-coral: #d96319;
+    --bar-pink: #cf4384;
+    --bar-amber: #cf8716;
+    --bar-green: #2fa558;
+    --bar-red: #cf4444;
   }
+}
+
+/* Tailwind v4: map utilities onto the vars above (theme flips with them). */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-ink: var(--ink);
+  --color-mute: var(--mute);
+  --color-faint: var(--faint);
+
+  --color-primary: var(--primary);
+  --color-primary-press: var(--primary-press);
+  --color-on-primary: var(--primary-ink);
+
+  --color-tone-blue: var(--tone-blue);
+  --color-wash-blue: var(--wash-blue);
+  --color-tone-violet: var(--tone-violet);
+  --color-wash-violet: var(--wash-violet);
+  --color-tone-teal: var(--tone-teal);
+  --color-wash-teal: var(--wash-teal);
+  --color-tone-coral: var(--tone-coral);
+  --color-wash-coral: var(--wash-coral);
+  --color-tone-pink: var(--tone-pink);
+  --color-wash-pink: var(--wash-pink);
+  --color-tone-amber: var(--tone-amber);
+  --color-wash-amber: var(--wash-amber);
+  --color-tone-red: var(--tone-red);
+  --color-wash-red: var(--wash-red);
+  --color-tone-green: var(--tone-green);
+  --color-wash-green: var(--wash-green);
+
+  --color-bar-blue: var(--bar-blue);
+  --color-bar-violet: var(--bar-violet);
+  --color-bar-teal: var(--bar-teal);
+  --color-bar-coral: var(--bar-coral);
+  --color-bar-pink: var(--bar-pink);
+  --color-bar-amber: var(--bar-amber);
+  --color-bar-green: var(--bar-green);
+  --color-bar-red: var(--bar-red);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Consistent visible focus ring on every keyboard-reachable control. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+::selection {
+  background: var(--wash-blue);
+  color: var(--ink);
+}
+
+/* The interface must stay fully usable with motion turned off system-wide. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

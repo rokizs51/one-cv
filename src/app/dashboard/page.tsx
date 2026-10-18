@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import DashboardApp from '@/components/dashboard/dashboard-app';
-import TopBar from '@/components/top-bar';
+import AppShell from '@/components/shell/app-shell';
 import { getSessionUser } from '@/lib/auth/session';
 
 // Session-reading pages must block on the server so the guard can
@@ -14,9 +14,8 @@ export default async function DashboardPage() {
   if (!user) redirect('/login');
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <TopBar />
+    <AppShell email={user.email ?? undefined}>
       <DashboardApp />
-    </div>
+    </AppShell>
   );
 }

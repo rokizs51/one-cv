@@ -5,7 +5,7 @@ import { getSessionUser } from '@/lib/auth/session';
 import { getResume } from '@/lib/db/resumes';
 import { getJd } from '@/lib/db/jds';
 import type { JdExtraction } from '@/lib/domain/types';
-import TopBar from '@/components/top-bar';
+import AppShell from '@/components/shell/app-shell';
 import ResumeEditor from '@/components/resume/resume-editor';
 
 // Session-reading page — must block server-side so the guard can redirect
@@ -35,14 +35,13 @@ export default async function ResumePage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <TopBar />
-      <main className="px-4 py-10">
+    <AppShell email={user.email}>
+      <main className="px-4 py-10 sm:px-8">
         <div className="mx-auto w-full max-w-5xl">
           <h1 className="sr-only">Resume preview</h1>
           <ResumeEditor resume={resume} extraction={extraction} />
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }

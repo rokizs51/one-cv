@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, Lightning, Sparkle } from '@phosphor-icons/react';
 import { JdChips } from '@/components/jd-chips';
 import type { GenMode, JdExtraction } from '@/lib/domain/types';
+import Card, { SectionHeading } from '@/components/ui/card';
+import { Button, buttonCls } from '@/components/ui/button';
 
 const DRAFT_KEY = 'jd-draft';
 
@@ -28,6 +31,40 @@ function friendlyError(code: string | undefined, message: string | undefined): s
     default:
       return message || 'Something went wrong. Please try again.';
   }
+}
+
+function StepPills({ step }: { step: Step }) {
+  const steps: { id: Step; n: string; label: string }[] = [
+    { id: 'paste', n: '1', label: 'Paste the job' },
+    { id: 'configure', n: '2', label: 'Choose how' },
+  ];
+  return (
+    <ol className="mb-6 flex items-center gap-2" aria-label="Progress">
+      {steps.map((s, i) => {
+        const current = s.id === step;
+        const done = i === 0 && step === 'configure';
+        return (
+          <li key={s.id} className="flex items-center gap-2">
+            <span
+              aria-current={current ? 'step' : undefined}
+              className={
+                'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ' +
+                (current
+                  ? 'bg-wash-blue text-tone-blue'
+                  : done
+                    ? 'bg-wash-green text-tone-green'
+                    : 'bg-surface-2 text-mute')
+              }
+            >
+              {done ? <Check aria-hidden size={12} weight="bold" /> : <span className="tabular-nums">{s.n}</span>}
+              {s.label}
+            </span>
+            {i === 0 && <span aria-hidden className="h-px w-6 bg-line-2" />}
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 export default function GenerateWizard() {
@@ -121,140 +158,146 @@ export default function GenerateWizard() {
 
   if (step === 'paste') {
     return (
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="jd-raw" className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Job description
-          </label>
-          <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Paste the full posting here — requirements, responsibilities, everything.
-          </p>
-          <textarea
-            id="jd-raw"
-            value={raw}
-            onChange={(e) => setRaw(e.target.value)}
-            rows={12}
-            required
-            className="w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 font-sans text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:ring-blue-400"
-            placeholder="Senior engineer wanted. You will…"
-          />
-        </div>
-
-        {error && (
-          <div role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {error}
+      <div>
+        <StepPills step={step} />
+        <Card className="space-y-4 p-6">
+          <div>
+            <label htmlFor="jd-raw" className="mb-1 block text-sm font-medium text-ink">
+              Job description
+            </label>
+            <p className="mb-2 text-sm text-mute">
+              Paste the full posting here — requirements, responsibilities, everything.
+            </p>
+            <textarea
+              id="jd-raw"
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              rows={12}
+              required
+              className="w-full resize-y rounded-2xl border border-line-2 bg-surface px-4 py-3 font-sans text-sm text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Senior engineer wanted. You will…"
+            />
           </div>
-        )}
 
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={handleExtract}
-            disabled={busy || !raw.trim()}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-400"
-          >
-            {busy ? 'Extracting…' : 'Extract'}
-          </button>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            We only use what you paste — nothing is invented.
-          </span>
-        </div>
+          {error && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-line bg-wash-red px-4 py-3 text-sm text-tone-red"
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-4">
+            <Button onClick={handleExtract} disabled={busy || !raw.trim()} size="lg">
+              <Lightning aria-hidden size={18} weight="bold" />
+              {busy ? 'Extracting…' : 'Extract'}
+            </Button>
+            <span className="text-xs text-mute">Takes a few seconds.</span>
+          </div>
+        </Card>
       </div>
     );
   }
 
+  const modeCards: { value: GenMode; title: string; desc: string }[] = [
+    {
+      value: 'as_is',
+      title: 'As-is',
+      desc: 'Your words, untouched. We only choose what stays and what the order is.',
+    },
+    {
+      value: 'enhance',
+      title: 'Enhance',
+      desc: 'We also suggest sharper wording for each line. You accept, edit, or reject every suggestion.',
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      {extraction && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            What this job wants
-          </h2>
-          <JdChips extraction={extraction} />
-        </section>
-      )}
+    <div>
+      <StepPills step={step} />
+      <div className="space-y-6">
+        {extraction && (
+          <Card className="p-6">
+            <SectionHeading className="mb-3">What this job wants</SectionHeading>
+            <JdChips extraction={extraction} />
+          </Card>
+        )}
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          How should we build it?
-        </h2>
-        <fieldset className="space-y-3">
-          <legend className="sr-only">Generation mode</legend>
-          <label className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-            <input
-              type="radio"
-              name="mode"
-              value="as_is"
-              checked={mode === 'as_is'}
-              onChange={() => setMode('as_is')}
-              className="mt-1"
-            />
-            <span>
-              <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">As-is</span>
-              <span className="block text-sm text-zinc-500 dark:text-zinc-400">
-                Your words, untouched. We only choose what stays and what the order is.
-              </span>
-            </span>
-          </label>
-          <label className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-            <input
-              type="radio"
-              name="mode"
-              value="enhance"
-              checked={mode === 'enhance'}
-              onChange={() => setMode('enhance')}
-              className="mt-1"
-            />
-            <span>
-              <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">Enhance</span>
-              <span className="block text-sm text-zinc-500 dark:text-zinc-400">
-                We also suggest sharper wording for each line. You accept, edit, or reject every suggestion.
-              </span>
-            </span>
-          </label>
-        </fieldset>
-      </section>
+        <Card className="p-6">
+          <SectionHeading className="mb-3">How should we build it?</SectionHeading>
+          <fieldset className="space-y-3">
+            <legend className="sr-only">Generation mode</legend>
+            {modeCards.map((m) => {
+              const selected = mode === m.value;
+              return (
+                <label
+                  key={m.value}
+                  className={
+                    'flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-150 ' +
+                    (selected
+                      ? 'border-primary bg-wash-blue'
+                      : 'border-line hover:border-line-2 hover:bg-surface-2/60')
+                  }
+                >
+                  <input
+                    type="radio"
+                    name="mode"
+                    value={m.value}
+                    checked={selected}
+                    onChange={() => setMode(m.value)}
+                    className="mt-0.5 size-4 accent-[var(--primary)]"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-ink">{m.title}</span>
+                    <span className="mt-0.5 block text-sm leading-6 text-mute">{m.desc}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </fieldset>
 
-      <section>
-        <label htmlFor="page-limit" className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Page limit
-        </label>
-        <select
-          id="page-limit"
-          value={String(pageLimit)}
-          onChange={(e) => setPageLimit(e.target.value === '2' ? 2 : 1)}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-        >
-          <option value="1">1 page (recommended)</option>
-          <option value="2">2 pages</option>
-        </select>
-      </section>
+          <div className="mt-5">
+            <label htmlFor="page-limit" className="mb-1.5 block text-sm font-medium text-ink">
+              Page limit
+            </label>
+            <select
+              id="page-limit"
+              value={String(pageLimit)}
+              onChange={(e) => setPageLimit(e.target.value === '2' ? 2 : 1)}
+              className="rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="1">1 page (recommended)</option>
+              <option value="2">2 pages</option>
+            </select>
+          </div>
+        </Card>
 
-      {error && (
-        <div role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
+        {error && (
+          <div
+            role="alert"
+            className="rounded-2xl border border-line bg-wash-red px-4 py-3 text-sm text-tone-red"
+          >
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-4">
+          <Button onClick={handleGenerate} disabled={busy} size="lg">
+            <Sparkle aria-hidden size={18} weight="bold" />
+            {busy ? 'Generating…' : 'Generate my CV'}
+          </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setError('');
+              setStep('paste');
+            }}
+            className={buttonCls('ghost', 'sm', 'border-none bg-transparent')}
+          >
+            Edit the pasted text
+          </button>
         </div>
-      )}
-
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={busy}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-400"
-        >
-          {busy ? 'Generating…' : 'Generate my CV'}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setError('');
-            setStep('paste');
-          }}
-          className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          Edit the pasted text
-        </button>
       </div>
     </div>
   );

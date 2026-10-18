@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Scissors } from '@phosphor-icons/react/ssr';
 import LoginForm from './login-form';
 import { getSessionUser } from '@/lib/auth/session';
 
@@ -12,26 +14,32 @@ export default async function LoginPage() {
   if (user) redirect('/dashboard');
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-      <div className="w-full max-w-md space-y-8 px-4">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Welcome back
-          </h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Sign in to your account to continue
-          </p>
-        </div>
-        <LoginForm />
-        <div className="text-center text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Don't have an account? </span>
-          <a
-            href="/signup"
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-wash-blue via-background to-wash-pink px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-6 flex items-center justify-center gap-2.5 text-sm font-semibold tracking-tight text-ink">
+          <span
+            aria-hidden
+            className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-bar-blue to-bar-violet text-white"
           >
-            Sign up
-          </a>
+            <Scissors size={17} weight="bold" />
+          </span>
+          ResumeTailor
         </div>
+        <div className="rounded-3xl border border-line bg-surface p-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-ink">Welcome back</h1>
+            <p className="mt-2 text-sm text-mute">Sign in to your account to continue</p>
+          </div>
+          <div className="mt-8">
+            <LoginForm />
+          </div>
+        </div>
+        <p className="mt-6 text-center text-sm">
+          <span className="text-mute">Don&apos;t have an account? </span>
+          <Link href="/signup" className="font-medium text-primary transition-colors hover:text-primary-press">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

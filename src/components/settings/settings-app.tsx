@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { DownloadSimple, Trash } from '@phosphor-icons/react';
+import Card, { SectionHeading } from '@/components/ui/card';
+import { Button, buttonCls } from '@/components/ui/button';
 
 /**
  * Settings (spec v1): full JSON export and hard account deletion.
- * The destructive action gets the muted warning tone + type-to-confirm —
- * never the accent color, which is reserved for primary actions.
+ * The destructive zone keeps its own semantic red wash, type-to-confirm,
+ * and is spatially separated from the safe action above it.
  */
 export default function SettingsApp() {
   const [confirmText, setConfirmText] = useState('');
@@ -35,56 +38,66 @@ export default function SettingsApp() {
   };
 
   return (
-    <div className="space-y-10">
-      <section>
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Your data
-        </h2>
-        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-          Download everything you&apos;ve recorded — profile, job descriptions, and every
-          generated CV — as a JSON file.
-        </p>
-        <a
-          href="/api/account/export"
-          className="inline-block rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        >
+    <div className="space-y-6">
+      <Card className="flex flex-col items-start gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <SectionHeading className="mb-1">Your data</SectionHeading>
+          <p className="max-w-md text-sm leading-6 text-mute">
+            Download everything you&apos;ve recorded — profile, job descriptions, and every
+            generated CV — as a JSON file.
+          </p>
+        </div>
+        <a href="/api/account/export" className={buttonCls('secondary', 'lg', 'shrink-0')}>
+          <DownloadSimple aria-hidden size={18} weight="bold" />
           Export my data (JSON)
         </a>
-      </section>
+      </Card>
 
-      <section className="rounded-md border border-red-200 bg-red-50/50 p-5 dark:border-red-900 dark:bg-red-950/30">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">
-          Delete account
-        </h2>
-        <p className="mb-4 text-sm leading-6 text-red-800/90 dark:text-red-300/90">
+      <Card border="border-tone-red/30" bg="bg-wash-red/40" className="p-6">
+        <div className="mb-2 flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="flex size-9 items-center justify-center rounded-xl bg-wash-red text-tone-red"
+          >
+            <Trash size={18} />
+          </span>
+          <SectionHeading color="text-tone-red">Delete account</SectionHeading>
+        </div>
+        <p className="mb-4 max-w-lg text-sm leading-6 text-mute">
           This permanently removes your profile, all recorded entries, saved job
           descriptions, and every generated CV — including your sign-in. It cannot be
           undone. Export first if you want a copy.
         </p>
-        <label htmlFor="delete-confirm" className="mb-1 block text-xs font-medium text-red-700 dark:text-red-400">
-          Type DELETE to confirm
-        </label>
-        <input
-          id="delete-confirm"
-          type="text"
-          value={confirmText}
-          onChange={(e) => setConfirmText(e.target.value)}
-          autoComplete="off"
-          className="w-48 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-red-900 dark:bg-zinc-900 dark:text-zinc-50"
-          placeholder="DELETE"
-        />
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">{error}</p>
-        )}
-        <button
-          type="button"
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div>
+            <label htmlFor="delete-confirm" className="mb-1.5 block text-xs font-medium text-tone-red">
+              Type DELETE to confirm
+            </label>
+            <input
+              id="delete-confirm"
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              autoComplete="off"
+              placeholder="DELETE"
+              className="w-48 rounded-full border border-tone-red/40 bg-surface px-4 py-2 text-sm text-ink transition-colors placeholder:text-faint focus:border-tone-red focus:outline-none focus:ring-2 focus:ring-tone-red/30"
+            />
+          </div>
+          <Button
+            variant="dangerSolid"
             disabled={!ready || busy}
             onClick={del}
-          className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600"
-        >
-          {busy ? 'Deleting…' : 'Delete my account'}
-        </button>
-      </section>
+          >
+            <Trash aria-hidden size={16} />
+            {busy ? 'Deleting…' : 'Delete my account'}
+          </Button>
+        </div>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-tone-red">
+            {error}
+          </p>
+        )}
+      </Card>
     </div>
   );
 }

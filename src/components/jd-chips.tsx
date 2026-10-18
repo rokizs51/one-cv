@@ -1,4 +1,13 @@
 import type { JdExtraction } from '@/lib/domain/types';
+import Chip, { type Tone } from '@/components/ui/chip';
+
+// Thematic color per JD category — vibrant text on a pastel wash.
+const SECTION_TONE: Record<string, Tone> = {
+  Required: 'coral',
+  Preferred: 'violet',
+  Tools: 'teal',
+  Keywords: 'blue',
+};
 
 interface ChipProps {
   label: string;
@@ -10,7 +19,7 @@ interface ChipProps {
 function ChipSection({ label, items, maxChips, renderedChips }: ChipProps) {
   const remaining = maxChips - renderedChips.count;
   const chipsToShow = items.slice(0, Math.max(0, remaining));
-  
+
   if (chipsToShow.length === 0) {
     return null;
   }
@@ -18,17 +27,14 @@ function ChipSection({ label, items, maxChips, renderedChips }: ChipProps) {
   renderedChips.count += chipsToShow.length;
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mr-1">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-mute">
         {label}:
       </span>
       {chipsToShow.map((item, idx) => (
-        <span
-          key={`${label}-${idx}`}
-          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
-        >
+        <Chip key={`${label}-${idx}`} tone={SECTION_TONE[label] ?? 'neutral'}>
           {item}
-        </span>
+        </Chip>
       ))}
     </div>
   );
@@ -64,9 +70,9 @@ export function JdChips({ extraction }: JdChipsProps) {
         />
       ))}
       {renderedChips.overflow > 0 && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+        <Chip tone="neutral" className="border border-line">
           +{renderedChips.overflow}
-        </span>
+        </Chip>
       )}
     </div>
   );

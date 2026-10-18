@@ -1,19 +1,32 @@
 'use client';
 
 import { useState } from 'react';
+import { SignOut } from '@phosphor-icons/react';
 
 /**
- * Quiet secondary action (never the accent — that's reserved for primary
- * actions per the UI direction). Posts to the logout route, which clears
- * the Supabase session cookies server-side, then lands on the public page.
+ * The quiet exit. Posts to the logout route (which clears the Supabase
+ * session cookies server-side), then leaves the app. Kept away from accent
+ * colors — sign-out is never a "primary action". `nav` renders it as a
+ * sidebar item; `inline` is the compact text link.
  */
-export default function SignOutButton() {
+export default function SignOutButton({
+  variant = 'inline',
+  compact = false,
+  onNavigate,
+}: {
+  variant?: 'inline' | 'nav';
+  /** Icon-only nav item for the collapsed sidebar; keeps an accessible name via title. */
+  compact?: boolean;
+  /** e.g. close the mobile drawer before the page leaves. */
+  onNavigate?: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const signOut = async () => {
     setError('');
     setBusy(true);
+    onNavigate?.();
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' });
       if (!res.ok) throw new Error('logout failed');
@@ -24,18 +37,40 @@ export default function SignOutButton() {
     }
   };
 
+  if (variant === 'nav') {
+    return (
+      <span className="flex flex-col gap-1">
+        {error && (
+          <span role="alert" className="px-3 text-xs text-tone-red">
+            {error}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={signOut}
+          disabled={busy}
+          title={compact ? 'Sign out' : undefined}
+          aria-label={compact ? 'Sign out' : undefined}
+          className={
+            'flex min-h-10 w-full cursor-pointer items-center gap-3 rounded-full px-3 py-2 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50' +
+            (compact ? ' justify-center px-0' : '')
+          }
+        >
+          <SignOut aria-hidden size={20} className="shrink-0" />
+          {!compact && <span>{busy ? 'Signing out…' : 'Sign out'}</span>}
+        </button>
+      </span>
+    );
+  }
+
   return (
     <span className="flex items-center gap-3">
-      {error && (
-        <span role="alert" className="text-xs text-red-600 dark:text-red-400">
-          {error}
-        </span>
-      )}
+      {error && <span role="alert" className="text-xs text-tone-red">{error}</span>}
       <button
         type="button"
         onClick={signOut}
         disabled={busy}
-        className="text-sm text-zinc-600 transition-colors hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="min-h-9 cursor-pointer rounded-full px-3 py-1.5 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
       >
         {busy ? 'Signing out…' : 'Sign out'}
       </button>

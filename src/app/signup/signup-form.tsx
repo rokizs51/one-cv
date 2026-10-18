@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { buttonCls } from '@/components/ui/button';
+
+const inputCls =
+  'w-full rounded-full border border-line-2 bg-surface px-4 py-2.5 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 export default function SignupForm() {
   const [email, setEmail] = useState('');
@@ -41,37 +45,39 @@ export default function SignupForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink">
           Email
         </label>
         <input
           id="email"
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={inputCls}
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-ink">
           Password
         </label>
         <input
           id="password"
           type="password"
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={inputCls}
         />
       </div>
 
       {error && (
-        <div className="text-red-600 dark:text-red-400 text-sm" role="alert">
+        <div role="alert" className="rounded-2xl bg-wash-red px-4 py-2.5 text-sm text-tone-red">
           {error}
         </div>
       )}
@@ -79,7 +85,7 @@ export default function SignupForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className={buttonCls('primary', 'lg', 'w-full')}
       >
         {loading ? 'Signing up...' : 'Sign Up'}
       </button>

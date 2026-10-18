@@ -1,7 +1,10 @@
 'use client';
 
+import { Scan } from '@phosphor-icons/react';
 import type { JdExtraction, ResumeDoc } from '@/lib/domain/types';
 import { matchedKeywords } from '@/lib/resume/scoring';
+import Chip from '@/components/ui/chip';
+import { SectionHeading } from '@/components/ui/card';
 
 export interface CutRow {
   itemId: string;
@@ -30,7 +33,7 @@ export default function MatchPanel({
 }) {
   if (!extraction) {
     return (
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="rounded-2xl bg-wash-amber px-4 py-3 text-sm text-tone-amber">
         The job description behind this CV is gone, so matching details are unavailable.
       </p>
     );
@@ -46,32 +49,26 @@ export default function MatchPanel({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Why this matched
-        </h3>
-        <ul className="space-y-3">
+        <SectionHeading className="mb-3">Why this matched</SectionHeading>
+        <ul className="space-y-4">
           {lines.map((line) => {
             const hits = matchedKeywords(line.text, extraction);
             return (
               <li key={line.key}>
-                <p className="text-sm leading-6 text-zinc-700 dark:text-zinc-300">{line.text}</p>
+                <p className="text-sm leading-6 text-ink">{line.text}</p>
                 {hits.length > 0 ? (
-                  <div className="mt-1 flex flex-wrap gap-1">
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {hits.map((k) => (
-                      <span
-                        key={k}
-                        className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                      >
+                      <Chip key={k} tone="blue" className="px-2 py-0.5">
+                        <Scan aria-hidden size={11} />
                         {k}
-                      </span>
+                      </Chip>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                    kept as part of your story
-                  </p>
+                  <p className="mt-1 text-xs text-faint">kept as part of your story</p>
                 )}
               </li>
             );
@@ -80,21 +77,17 @@ export default function MatchPanel({
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Cut from this page
-        </h3>
+        <SectionHeading className="mb-3">Cut from this page</SectionHeading>
         {cuts.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Nothing was cut — everything selected fits.
-          </p>
+          <p className="text-sm text-mute">Nothing was cut — everything selected fits.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {cuts.map((c) => (
-              <li key={c.itemId}>
-                <p className="text-sm leading-6 text-zinc-400 line-through dark:text-zinc-600">
+              <li key={c.itemId} className="rounded-2xl bg-surface-2 px-4 py-3">
+                <p className="text-sm leading-6 text-mute line-through decoration-line-2">
                   {c.text}
                 </p>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{REASON_LABEL[c.reason]}</p>
+                <p className="mt-1 text-xs text-faint">{REASON_LABEL[c.reason]}</p>
               </li>
             ))}
           </ul>

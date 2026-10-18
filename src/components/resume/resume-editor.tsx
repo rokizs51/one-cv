@@ -1,10 +1,14 @@
 'use client';
 
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { DownloadSimple, Lock } from '@phosphor-icons/react';
 import type { GeneratedResume } from '@/lib/db/resumes';
 import type { JdExtraction } from '@/lib/domain/types';
 import SuggestionReview, { type SuggestionRow } from './suggestion-review';
 import MatchPanel, { type CutRow } from './match-panel';
+import Card, { SectionHeading } from '@/components/ui/card';
+import Chip from '@/components/ui/chip';
+import { buttonCls } from '@/components/ui/button';
 
 // react-pdf's viewer is browser-only machinery — lazy-load it behind a
 // Suspense fallback so the server render never touches it.
@@ -157,7 +161,7 @@ export default function ResumeEditor({
         <div className="sticky top-6">
           <Suspense
             fallback={
-              <div className="flex h-[70vh] items-center justify-center rounded-md border border-zinc-200 text-sm text-zinc-500 dark:border-zinc-800">
+              <div className="flex h-[70vh] items-center justify-center rounded-2xl border border-line bg-surface text-sm text-mute">
                 Rendering the page…
               </div>
             }
@@ -169,7 +173,7 @@ export default function ResumeEditor({
         {overflow && (
           <div
             role="alert"
-            className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            className="mt-4 rounded-2xl bg-wash-amber p-4 text-sm text-tone-amber"
           >
             <p className="font-medium">
               Pinned content alone is more than {resume.pageLimit === 2 ? 'two pages' : 'one page'}.
@@ -184,7 +188,7 @@ export default function ResumeEditor({
                   type="button"
                   disabled={busy}
                   onClick={() => changePageLimit(2)}
-                  className="rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                  className={buttonCls('secondary', 'sm')}
                 >
                   Use two pages
                 </button>
@@ -194,7 +198,7 @@ export default function ResumeEditor({
                   type="button"
                   disabled={busy}
                   onClick={() => changePageLimit(1)}
-                  className="rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                  className={buttonCls('secondary', 'sm')}
                 >
                   Back to one page
                 </button>
@@ -206,45 +210,44 @@ export default function ResumeEditor({
 
       <aside className="space-y-8">
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Suggestions
-            </h2>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <SectionHeading>Suggestions</SectionHeading>
             {pending > 0 && (
-              <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                {pending} waiting
-              </span>
+              <Chip tone="amber">{pending} waiting</Chip>
             )}
           </div>
           <SuggestionReview rows={rows} busy={busy} onDisposition={disposition} />
         </section>
 
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            Download
-          </h2>
+        <Card className="p-5">
+          <SectionHeading className="mb-3">Download</SectionHeading>
           {pending === 0 ? (
             <a
               href={`/api/resumes/${resume.id}/pdf`}
-              className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              className={buttonCls('primary', 'lg')}
             >
+              <DownloadSimple aria-hidden size={18} weight="bold" />
               Download PDF
             </a>
           ) : (
             <div>
-              <span className="inline-block cursor-not-allowed rounded-md bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500">
+              <span
+                aria-disabled="true"
+                className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-5 py-2.5 text-sm font-medium text-faint"
+              >
+                <Lock aria-hidden size={15} />
                 Download PDF
               </span>
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-2 text-xs leading-5 text-mute">
                 Decide every suggestion ({pending} left) before exporting — the PDF only ever
                 contains wording you approved.
               </p>
             </div>
           )}
-        </section>
+        </Card>
 
         {error && (
-          <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <div role="alert" className="rounded-2xl bg-wash-red px-4 py-3 text-sm text-tone-red">
             {error}
           </div>
         )}
