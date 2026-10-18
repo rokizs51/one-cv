@@ -1,4 +1,4 @@
-import { generateObject, generateText, JSONParseError, TypeValidationError, NoObjectGeneratedError } from 'ai';
+import { generateText, JSONParseError, TypeValidationError, NoObjectGeneratedError } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { GenAI, EnhanceRequest, SummaryRequest } from './types';
@@ -17,6 +17,57 @@ export function isSchemaParseError(error: unknown): boolean {
     error instanceof TypeValidationError ||
     error instanceof NoObjectGeneratedError
   );
+}
+
+/**
+ * Prompt-instructed JSON + client-side parse/validate, returned through the
+ * same error classes the retry classifier knows.
+ *
+ * Deliberately NOT generateObject (deprecated) and NOT Output.object(): both
+ * compile to responseFormat:'json', which @ai-sdk/anthropic implements as a
+ * forced tool call (tool_choice:'any') on models without native structured
+ * output. Anthropic-compatible third-party endpoints (Qwen token plans) reject
+ * forced tool use with 404 "Not support". Plain text + JSON instruction works
+ * on any Anthropic-wire provider, which is the whole point of the swappable
+ * single ai module.
+ */
+async function generateJson<T>(opts: {
+  model: Parameters<typeof generateText>[0]['model'];
+  prompt: string;
+  schema: z.ZodType<T>;
+}): Promise<T> {
+  const result = await generateText({
+    model: opts.model,
+    prompt: `${opts.prompt}
+
+Respond with ONLY a single valid JSON object - no prose, no markdown code fences, no trailing commentary.`,
+  });
+
+  const parsedResult = await safeParseJsonObject(result.text);
+  if (!parsedResult.ok) {
+    throw new JSONParseError({ text: result.text, cause: parsedResult.error });
+  }
+
+  const validated = opts.schema.safeParse(parsedResult.value);
+  if (!validated.success) {
+    throw new TypeValidationError({ value: parsedResult.value, cause: validated.error });
+  }
+  return validated.data;
+}
+
+/**
+ * Models wrap JSON in prose or ``` fences often enough that slicing is part
+ * of the contract: take the outermost {...} span, then parse strictly.
+ */
+async function safeParseJsonObject(text: string): Promise<{ ok: true; value: unknown } | { ok: false; error: Error }> {
+  try {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start === -1 || end <= start) throw new Error('no JSON object found in response');
+    return { ok: true, value: JSON.parse(text.slice(start, end + 1)) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
+  }
 }
 
 /**
@@ -47,7 +98,9 @@ export function createGenAI(): GenAI {
     // AI_API_KEY is the provider-neutral name; ANTHROPIC_API_KEY kept as
     // the fallback so existing setups need no change.
     apiKey: process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY,
-    baseURL: config.baseUrl, // undefined → SDK default (api.anthropic.com)
+    // undefined → SDK default (api.anthropic.com). Custom bases must include
+    // the version segment: the SDK appends "/messages" to baseURL.
+    baseURL: config.baseUrl,
   });
 
   return {
@@ -72,13 +125,11 @@ Return a JSON object with these fields:
       // Retry once on schema/parse failure only
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          const result = await generateObject({
+          return await generateJson({
             model: anthropic(config.extractionModel),
             schema: JdExtractionSchema,
             prompt,
           });
-
-          return result.object;
         } catch (error) {
           // Non-parse errors (network, auth, rate limit) re-throw immediately
           if (!isSchemaParseError(error)) {
@@ -131,13 +182,13 @@ Each suggestion must have:
 - newText: the enhanced bullet text
 - basis: brief explanation of what was changed and why`;
 
-      const result = await generateObject({
+      const result = await generateJson({
         model: anthropic(config.enhanceModel),
         schema: EnhanceResponseSchema,
         prompt,
       });
 
-      return result.object.suggestions.map((s, i) => ({
+      return result.suggestions.map((s, i) => ({
         id: `suggestion-${i}`,
         targetItemId: s.itemId,
         kind: 'bullet' as const,
