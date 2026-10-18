@@ -54,10 +54,12 @@ export function estimateLines(item: ProfileItem, width?: number): number {
 /**
  * Fits scored items to page budget using the algorithm:
  * 1. Pinned items are NEVER cut; always in chosen
- * 2. Unpinned items with score < MIN_SCORE are cut with reason 'relevance'
- * 3. Remaining unpinned sorted by score desc, accumulated until budget exhausted
- * 4. Rest cut with reason 'space'
- * 5. If pinned alone exceeds the remaining budget → overflow: true
+ * 2. Unpinned items with score >= MIN_SCORE are chosen by score desc while
+ *    they fit; the rest are cut with reason 'space'
+ * 3. Items with score < MIN_SCORE backfill whatever page is left — a 1-page
+ *    selection should fill the page instead of ending half-empty — and are
+ *    cut with reason 'relevance' only when even the leftovers don't fit
+ * 4. If pinned alone exceeds the remaining budget → overflow: true
  *
  * `reservedUnits` holds back line budget for content that renders on the page
  * but is deliberately not part of `scored` — namely doc.summary (the
@@ -92,35 +94,38 @@ export function fitToPage(scored: ScoredItem[], pageLimit: 1 | 2, reservedUnits:
   
   // Check overflow
   const overflow = pinnedLines > budget;
-  
-  // Remaining budget for unpinned items
-  const remainingBudget = Math.max(0, budget - pinnedLines);
-  
-  // Relevance pass: cut unpinned items with score < MIN_SCORE
-  const unpinnedAfterRelevance: ScoredItem[] = [];
+
+  // Keepers (relevant enough to compete for space) vs fillers (below the
+  // relevance bar — they only get whatever page is left).
+  const keepers: ScoredItem[] = [];
+  const fillers: ScoredItem[] = [];
   for (const s of unpinned) {
-    if (s.score < MIN_SCORE) {
-      cuts.push({ item: s, reason: 'relevance' });
-    } else {
-      unpinnedAfterRelevance.push(s);
-    }
+    (s.score >= MIN_SCORE ? keepers : fillers).push(s);
   }
-  
-  // Sort remaining unpinned by score desc
-  unpinnedAfterRelevance.sort((a, b) => b.score - a.score);
-  
-  // Space pass: accumulate until budget exhausted
+  keepers.sort((a, b) => b.score - a.score);
+  fillers.sort((a, b) => b.score - a.score);
+
   let usedLines = pinnedLines;
-  for (const s of unpinnedAfterRelevance) {
+  const takeIfFits = (s: ScoredItem): boolean => {
     const lines = estimateLines(s.item);
     if (usedLines + lines <= budget) {
       chosen.push(s);
       usedLines += lines;
-    } else {
-      cuts.push({ item: s, reason: 'space' });
+      return true;
     }
+    return false;
+  };
+
+  // Space pass: keepers first, highest score wins.
+  for (const s of keepers) {
+    if (!takeIfFits(s)) cuts.push({ item: s, reason: 'space' });
   }
-  
+
+  // Backfill pass: fill the rest of the page rather than leaving it short.
+  for (const s of fillers) {
+    if (!takeIfFits(s)) cuts.push({ item: s, reason: 'relevance' });
+  }
+
   return { chosen, cuts, overflow };
 }
 

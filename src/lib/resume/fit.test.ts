@@ -65,8 +65,8 @@ describe('estimateLines', () => {
   });
 });
 
-describe('fitToPage — relevance cuts', () => {
-  it('cuts items with score < MIN_SCORE even when space is available', () => {
+describe('fitToPage — relevance backfill', () => {
+  it('fills leftover page with score < MIN_SCORE items instead of ending half-empty', () => {
     // 3 items: 2 high score, 1 low score (below MIN_SCORE=2)
     const high1 = itemWithLines('high1', 10);
     const high2 = itemWithLines('high2', 10);
@@ -76,15 +76,38 @@ describe('fitToPage — relevance cuts', () => {
     );
 
     const result = fitToPage([high1, high2, low], 1);
-    const cutIds = result.cuts.map((c) => c.item.item.id);
-    expect(cutIds).toContain('low');
-    // Chosen should only contain high scorers
-    expect(result.chosen.map((s) => s.item.id)).toContain('high1');
-    expect(result.chosen.map((s) => s.item.id)).toContain('high2');
-    expect(result.chosen.map((s) => s.item.id)).not.toContain('low');
-    // Reason must be 'relevance'
+    const chosenIds = result.chosen.map((s) => s.item.id);
+    // ~58 units stay free after the high scorers — the low scorer backfills them
+    expect(chosenIds).toContain('high1');
+    expect(chosenIds).toContain('high2');
+    expect(chosenIds).toContain('low');
+    expect(result.cuts).toHaveLength(0);
+  });
+
+  it('cuts items with score < MIN_SCORE with reason relevance once keepers exhaust the page', () => {
+    const k1 = itemWithLines('k1', 40);
+    const k2 = itemWithLines('k2', 38); // keepers fill exactly 78/78 units
+    const low = makeScoreed(
+      makeItem({ id: 'low', canonicalText: 'x'.repeat(64) }),
+      1,
+    );
+
+    const result = fitToPage([k1, k2, low], 1);
+    expect(result.chosen.map((s) => s.item.id)).toEqual(['k1', 'k2']);
     const lowCut = result.cuts.find((c) => c.item.item.id === 'low');
     expect(lowCut?.reason).toBe('relevance');
+  });
+
+  it('keepers always win contested space over fillers', () => {
+    const keeper = itemWithLines('k', 70); // fits, leaves 8 units
+    const bigFiller = makeScoreed(makeItem({ id: 'big', canonicalText: 'x'.repeat(20 * 64) }), 1);
+    const smallFiller = makeScoreed(makeItem({ id: 'small', canonicalText: 'x'.repeat(8 * 64) }), 0);
+
+    const result = fitToPage([keeper, bigFiller, smallFiller], 1);
+    const chosenIds = result.chosen.map((s) => s.item.id);
+    expect(chosenIds).toContain('k');
+    expect(chosenIds).toContain('small'); // first-fit into the 8-unit leftover
+    expect(result.cuts.find((c) => c.item.item.id === 'big')?.reason).toBe('relevance');
   });
 
   it('does not cut items with score >= MIN_SCORE for relevance', () => {
