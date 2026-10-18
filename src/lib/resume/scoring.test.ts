@@ -244,10 +244,10 @@ describe('orderSections', () => {
     // 'summary' is never emitted even though the career_snapshot item is
     // present: the headline lives in doc.summary, rendered separately.
     expect(sections.map((s) => s.id)).toEqual([
-      'skills',
       'experience',
-      'projects',
+      'skills',
       'education',
+      'projects',
       'awards',
       'languages',
     ]);
@@ -278,10 +278,10 @@ describe('orderSections', () => {
     const sections = orderSections(scoredItems, { earlyCareer: true });
 
     expect(sections.map((s) => s.id)).toEqual([
-      'skills',
       'education',
       'projects',
       'experience',
+      'skills',
       'awards',
       'languages',
     ]);
@@ -306,7 +306,7 @@ describe('orderSections', () => {
     const scoredItems = items.map((item) => keywordScore(item, jd));
     const sections = orderSections(scoredItems, { earlyCareer: false });
 
-    expect(sections.map((s) => s.id)).toEqual(['skills', 'experience']);
+    expect(sections.map((s) => s.id)).toEqual(['experience', 'skills']);
   });
 });
 

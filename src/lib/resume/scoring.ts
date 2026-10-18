@@ -137,31 +137,33 @@ export function keywordScore(item: ProfileItem, jd: JdExtraction): ScoredItem {
   };
 }
 
-// Base order for sections. No 'summary' entry by design: the headline
-// summary is doc.summary (rendered by the template separately), never a
-// section — see TYPE_TO_SECTION note above.
+// Base order for sections — the ATS reference structure
+// (docs/cv-structure-reference.md): Experience → Skills → Education, then the
+// optional tail. No 'summary' entry by design: the headline summary is
+// doc.summary (rendered by the template separately), never a section —
+// see TYPE_TO_SECTION note above.
 const BASE_ORDER: SectionId[] = [
-  'skills',
   'experience',
-  'projects',
+  'skills',
   'education',
+  'projects',
   'awards',
   'languages',
 ];
 
 // Early career order: education and projects before experience
 const EARLY_CAREER_ORDER: SectionId[] = [
-  'skills',
   'education',
   'projects',
   'experience',
+  'skills',
   'awards',
   'languages',
 ];
 
 /**
  * Orders sections based on scored items and early career flag.
- * - Base order: skills, experience, projects, education, awards, languages
+ * - Base order: experience, skills, education, projects, awards, languages
  * - If earlyCareer: education and projects move before experience
  * - Empty sections are omitted; a 'summary' section is never emitted
  */
