@@ -20,7 +20,7 @@ vi.mock('@/lib/db/client', () => ({
   createRouteClient: vi.fn(),
 }));
 
-import { GET, PATCH } from './route';
+import { GET, PATCH, DELETE } from './route';
 import { getSessionUser } from '@/lib/auth/session';
 import { createRouteClient } from '@/lib/db/client';
 
@@ -110,6 +110,53 @@ describe('GET /api/resumes/:id', () => {
   });
 });
 
+describe('DELETE /api/resumes/:id', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+  });
+
+  const delReq = () => new Request('http://localhost/api/resumes/' + RESUME_ID, { method: 'DELETE' });
+
+  it('deletes an owned resume and records the delete call', async () => {
+    const supa = createSupaStub({
+      from: {
+        generated_resumes: {
+          data: {
+            id: RESUME_ID, owner: 'user-1', jd_id: 'jd-1', mode: 'as_is', page_limit: 1,
+            doc: {}, suggestions: [], statuses: [], user_edits: {},
+            fit: { chosen: [], cuts: [], overflow: false },
+            created_at: 'x', updated_at: 'x',
+          },
+          error: null,
+        },
+      },
+    });
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await DELETE(delReq(), makeContext(RESUME_ID));
+    expect(res.status).toBe(200);
+    const del = supa.calls.from.find((c) => c.table === 'generated_resumes' && c.method === 'delete');
+    expect(del).toBeDefined();
+  });
+
+  it('returns 404 for an unknown resume and deletes nothing', async () => {
+    const supa = createSupaStub(); // no generated_resumes → getResume → null
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await DELETE(delReq(), makeContext(OTHER_ID));
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe('not_found');
+    expect(supa.calls.from.find((c) => c.method === 'delete')).toBeUndefined();
+  });
+
+  it('returns 401 without a session', async () => {
+    mockGetSessionUser.mockResolvedValue(null);
+    const res = await DELETE(delReq(), makeContext(RESUME_ID));
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('PATCH /api/resumes/:id — suggestion disposition', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -166,6 +213,80 @@ describe('PATCH /api/resumes/:id — suggestion disposition', () => {
     const res = await PATCH(patchReq({ suggestionId: 'sug-1', status: 'rejected' }), makeContext(RESUME_ID));
     expect(res.status).toBe(200);
     expect(supa.calls.from.filter((c) => c.method === 'update' && c.table === 'profile_items')).toHaveLength(0);
+  });
+
+  // Two-pending stub for the batch arm (the deferred review rail).
+  function batchResumeStub(secondStatus: 'pending' | 'accepted' = 'pending') {
+    const bullet2 = { id: 'sug-2', targetItemId: 'i2', kind: 'bullet' as const, newText: 'Second sharper line', basis: 'i2' };
+    return createSupaStub({
+      from: {
+        generated_resumes: {
+          data: {
+            id: RESUME_ID, owner: 'user-1', jd_id: 'jd-1', mode: 'enhance', page_limit: 1,
+            doc: { header: { fullName: 'T', email: 't@e.com', phone: null, location: null, links: [] }, summary: null,
+              sections: [{ id: 'experience', items: [
+                { sourceItemId: 'i1', text: 'Original line', basis: 'i1' },
+                { sourceItemId: 'i2', text: 'Another original', basis: 'i2' },
+              ] }] },
+            suggestions: [bullet, bullet2],
+            statuses: [
+              { suggestion: bullet, status: 'pending', finalText: null },
+              { suggestion: bullet2, status: secondStatus, finalText: secondStatus === 'accepted' ? 'Second sharper line' : null },
+            ],
+            user_edits: {}, fit: { chosen: ['i1', 'i2'], cuts: [], overflow: false },
+            created_at: 'x', updated_at: 'x',
+          },
+          error: null,
+        },
+        profile_items: {
+          data: { id: 'i1', profile_id: 'p1', type: 'experience', payload: {}, canonical_text: 'Original line', source: 'manual', provenance: [], pinned: false, position: 0 },
+          error: null,
+        },
+      },
+    });
+  }
+
+  it('applies a whole batch of decisions in one resume write', async () => {
+    const supa = batchResumeStub();
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await PATCH(
+      patchReq({
+        dispositions: [
+          { suggestionId: 'sug-1', status: 'accepted' },
+          { suggestionId: 'sug-2', status: 'rejected' },
+        ],
+      }),
+      makeContext(RESUME_ID)
+    );
+    expect(res.status).toBe(200);
+
+    const resumeUpdates = supa.calls.from.filter(
+      (c) => c.table === 'generated_resumes' && c.method === 'update'
+    );
+    expect(resumeUpdates).toHaveLength(1); // N decisions, one write — the whole point
+    const args = JSON.stringify(resumeUpdates[0].args);
+    expect(args).toContain('Sharper line');
+    expect(args).toContain('rejected');
+    // Only the accepted bullet compounds into the profile.
+    expect(supa.calls.from.filter((c) => c.table === 'profile_items' && c.method === 'update')).toHaveLength(1);
+  });
+
+  it('a batch containing one already-dispositioned suggestion writes nothing at all', async () => {
+    const supa = batchResumeStub('accepted'); // sug-2 already terminal
+    mockCreateRouteClient.mockResolvedValue(supa as never);
+
+    const res = await PATCH(
+      patchReq({
+        dispositions: [
+          { suggestionId: 'sug-1', status: 'accepted' }, // valid, staged first…
+          { suggestionId: 'sug-2', status: 'rejected' }, // …but this 409s before any write
+        ],
+      }),
+      makeContext(RESUME_ID)
+    );
+    expect(res.status).toBe(409);
+    expect(supa.calls.from.find((c) => c.method === 'update')).toBeUndefined();
   });
 
   it('second disposition on the same suggestion returns 409 already_dispositioned', async () => {

@@ -91,6 +91,12 @@ export default function DashboardApp() {
 
   const missing = counts.byType.filter((b) => b.count === 0);
 
+  const removeResume = async (id: string) => {
+    const res = await fetch(`/api/resumes/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('delete failed');
+    setResumes((prev) => (prev ? prev.filter((r) => r.id !== id) : prev));
+  };
+
   const startFromOmnibox = () => {
     if (!omnibox.trim()) return;
     // Same draft channel the wizard already restores after login redirects.
@@ -214,7 +220,7 @@ export default function DashboardApp() {
               New tailored CV
             </Link>
           </div>
-          <VersionList resumes={resumes} />
+          <VersionList resumes={resumes} onDelete={removeResume} />
         </section>
       </div>
     </main>

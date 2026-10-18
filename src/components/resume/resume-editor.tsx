@@ -1,18 +1,28 @@
 'use client';
 
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { DownloadSimple, Lock } from '@phosphor-icons/react';
+import { useCallback, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { Check, DownloadSimple, Lock } from '@phosphor-icons/react';
 import type { GeneratedResume } from '@/lib/db/resumes';
-import type { JdExtraction } from '@/lib/domain/types';
+import type { JdExtraction, SuggestionState } from '@/lib/domain/types';
 import SuggestionReview, { type SuggestionRow } from './suggestion-review';
 import MatchPanel, { type CutRow } from './match-panel';
 import Card, { SectionHeading } from '@/components/ui/card';
 import Chip from '@/components/ui/chip';
-import { buttonCls } from '@/components/ui/button';
+import { Button, buttonCls } from '@/components/ui/button';
 
-// react-pdf's viewer is browser-only machinery — lazy-load it behind a
-// Suspense fallback so the server render never touches it.
-const Preview = lazy(() => import('./preview'));
+// react-pdf's PDFViewer throws when its module is evaluated on Node, and
+// React.lazy is still prerendered (SSR'd) by default — next/dynamic with
+// ssr:false (inside this client component, per the Next docs) keeps the
+// import browser-only.
+const Preview = dynamic(() => import('./preview'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[70vh] items-center justify-center rounded-2xl border border-line bg-surface text-sm text-mute">
+      Rendering the page…
+    </div>
+  ),
+});
 
 /**
  * The preview screen (spec screen #4): the rendered CV as the single source
@@ -35,6 +45,10 @@ export default function ResumeEditor({
   const [overflow, setOverflow] = useState(resume.fit.overflow);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // suggestionId → local decision, not yet sent to the server.
+  const [decisions, setDecisions] = useState<
+    Record<string, { status: 'accepted' | 'rejected' | 'edited'; finalText?: string }>
+  >({});
 
   const docTextFor = useCallback(
     (itemId: string): string => {
@@ -109,19 +123,43 @@ export default function ResumeEditor({
     }
   };
 
-  const disposition = async (
+  // Decisions are local (instant click, Undo before apply); the whole batch
+  // reaches the server in one PATCH so N reviews cost one save, not N writes.
+  const disposition = (
     suggestionId: string,
     status: 'accepted' | 'rejected' | 'edited',
     finalText?: string
   ) => {
+    setError('');
+    setDecisions((d) => ({ ...d, [suggestionId]: { status, ...(finalText ? { finalText } : {}) } }));
+  };
+
+  const undoDecision = (suggestionId: string) => {
+    setDecisions((d) => {
+      const rest = { ...d };
+      delete rest[suggestionId];
+      return rest;
+    });
+  };
+
+  const applyDecisions = async () => {
+    const list = Object.entries(decisions).map(([suggestionId, d]) => ({ suggestionId, ...d }));
+    if (list.length === 0) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/resumes/${resume.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ suggestionId, status, ...(finalText ? { finalText } : {}) }),
+        body: JSON.stringify({ dispositions: list }),
       });
       await applyResponse(res);
+      if (res.status === 409) setDecisions({}); // server resynced — drafts are stale
+      else if (res.ok)
+        setDecisions((prev) => {
+          const out = { ...prev };
+          for (const { suggestionId } of list) delete out[suggestionId];
+          return out;
+        });
     } catch {
       setError('Could not reach the server. Check your connection and try again.');
     } finally {
@@ -145,29 +183,35 @@ export default function ResumeEditor({
     }
   };
 
-  const pending = resume.statuses.filter((s) => s.status === 'pending').length;
+  const undecided = resume.statuses.filter(
+    (s) => s.status === 'pending' && !decisions[s.suggestion.id]
+  ).length;
+  const draftCount = Object.keys(decisions).length;
 
-  const rows: SuggestionRow[] = resume.statuses.map((state) => ({
-    state,
-    originalText:
-      state.suggestion.kind === 'summary'
-        ? resume.doc.summary ?? ''
-        : docTextFor(state.suggestion.targetItemId),
-  }));
+  const rows: SuggestionRow[] = resume.statuses.map((state) => {
+    const d = decisions[state.suggestion.id];
+    const merged: SuggestionState = d
+      ? {
+          ...state,
+          status: d.status,
+          finalText: d.status === 'rejected' ? null : d.finalText ?? state.suggestion.newText,
+        }
+      : state;
+    return {
+      state: merged,
+      originalText:
+        merged.suggestion.kind === 'summary'
+          ? resume.doc.summary ?? ''
+          : docTextFor(merged.suggestion.targetItemId),
+      draft: !!d,
+    };
+  });
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
       <div>
         <div className="sticky top-6">
-          <Suspense
-            fallback={
-              <div className="flex h-[70vh] items-center justify-center rounded-2xl border border-line bg-surface text-sm text-mute">
-                Rendering the page…
-              </div>
-            }
-          >
-            <Preview doc={resume.doc} pageLimit={resume.pageLimit} />
-          </Suspense>
+          <Preview doc={resume.doc} pageLimit={resume.pageLimit} />
         </div>
 
         {overflow && (
@@ -208,43 +252,45 @@ export default function ResumeEditor({
         )}
       </div>
 
-      <aside className="space-y-8">
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
+      <aside className="space-y-6">
+        {/* Sticky so Apply/Download never hide below the fold of a long review. */}
+        <Card className="sticky top-4 z-10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <SectionHeading>Suggestions</SectionHeading>
-            {pending > 0 && (
-              <Chip tone="amber">{pending} waiting</Chip>
-            )}
+            {undecided > 0 && <Chip tone="amber">{undecided} waiting</Chip>}
           </div>
-          <SuggestionReview rows={rows} busy={busy} onDisposition={disposition} />
-        </section>
-
-        <Card className="p-5">
-          <SectionHeading className="mb-3">Download</SectionHeading>
-          {pending === 0 ? (
-            <a
-              href={`/api/resumes/${resume.id}/pdf`}
-              className={buttonCls('primary', 'lg')}
-            >
-              <DownloadSimple aria-hidden size={18} weight="bold" />
-              Download PDF
-            </a>
-          ) : (
-            <div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {draftCount > 0 && (
+              <Button size="sm" disabled={busy} onClick={applyDecisions}>
+                <Check aria-hidden size={14} weight="bold" />
+                {busy ? 'Applying…' : `Apply ${draftCount} decision${draftCount > 1 ? 's' : ''}`}
+              </Button>
+            )}
+            {undecided === 0 && draftCount === 0 ? (
+              <a href={`/api/resumes/${resume.id}/pdf`} className={buttonCls('primary', 'sm')}>
+                <DownloadSimple aria-hidden size={16} weight="bold" />
+                Download PDF
+              </a>
+            ) : (
               <span
                 aria-disabled="true"
-                className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-5 py-2.5 text-sm font-medium text-faint"
+                className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-4 py-1.5 text-sm font-medium text-faint"
               >
-                <Lock aria-hidden size={15} />
+                <Lock aria-hidden size={14} />
                 Download PDF
               </span>
-              <p className="mt-2 text-xs leading-5 text-mute">
-                Decide every suggestion ({pending} left) before exporting — the PDF only ever
-                contains wording you approved.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-mute">
+            {draftCount > 0
+              ? 'Decisions stay on this page until you apply them — the whole batch saves in one step.'
+              : undecided > 0
+                ? `Decide every suggestion (${undecided} left) before exporting — the PDF only ever contains wording you approved.`
+                : 'Everything is applied. The PDF holds exactly the wording you approved.'}
+          </p>
         </Card>
+
+        <SuggestionReview rows={rows} onDisposition={disposition} onUndo={undoDecision} />
 
         {error && (
           <div role="alert" className="rounded-2xl bg-wash-red px-4 py-3 text-sm text-tone-red">

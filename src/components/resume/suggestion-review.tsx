@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, PenNib, X } from '@phosphor-icons/react';
+import { ArrowUUpLeft, Check, PenNib, X } from '@phosphor-icons/react';
 import type { SuggestionState } from '@/lib/domain/types';
 import Card from '@/components/ui/card';
 import Chip from '@/components/ui/chip';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 export interface SuggestionRow {
   state: SuggestionState;
   originalText: string;
+  /** Local decision the user has made but not applied yet. */
+  draft?: boolean;
 }
 
 const OUTCOME_LABEL: Record<'accepted' | 'rejected' | 'edited', string> = {
@@ -19,19 +21,21 @@ const OUTCOME_LABEL: Record<'accepted' | 'rejected' | 'edited', string> = {
 };
 
 /**
- * Accept / Edit / Reject every rewrite and the composed headline. Pending
- * rows block export until dispositioned; dispositions are final per
- * generation (reword your profile later from the profile editor, where
- * every accepted change keeps an undo).
+ * Accept / Edit / Reject every rewrite and the composed headline. Clicks are
+ * local (fast, reversible via Undo) — the parent applies the whole batch in
+ * one request. Export stays blocked until every suggestion is dispositioned
+ * AND the decisions are applied. Dispositions are final per generation once
+ * applied (reword your profile later from the profile editor, where every
+ * accepted change keeps an undo).
  */
 export default function SuggestionReview({
   rows,
-  busy,
   onDisposition,
+  onUndo,
 }: {
   rows: SuggestionRow[];
-  busy: boolean;
-  onDisposition: (suggestionId: string, status: 'accepted' | 'rejected' | 'edited', finalText?: string) => Promise<void>;
+  onDisposition: (suggestionId: string, status: 'accepted' | 'rejected' | 'edited', finalText?: string) => void;
+  onUndo?: (suggestionId: string) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -46,7 +50,7 @@ export default function SuggestionReview({
 
   return (
     <ul className="space-y-4">
-      {rows.map(({ state, originalText }) => {
+      {rows.map(({ state, originalText, draft: isDraft }) => {
         const { suggestion, status, finalText } = state;
         const isSummary = suggestion.kind === 'summary';
 
@@ -81,10 +85,10 @@ export default function SuggestionReview({
                     <div className="mt-2 flex gap-2">
                       <Button
                         size="sm"
-                        disabled={busy || !draft.trim()}
+                        disabled={!draft.trim()}
                         onClick={() => {
                           setEditingId(null);
-                          onDisposition(suggestion.id, 'edited', draft.trim()).catch(() => {});
+                          onDisposition(suggestion.id, 'edited', draft.trim());
                         }}
                       >
                         Save
@@ -99,18 +103,13 @@ export default function SuggestionReview({
                     <p className="mt-2 text-sm leading-6 text-ink">{suggestion.newText}</p>
                     <p className="mt-1 text-xs text-mute">{suggestion.basis}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {/* Accept is always clickable — the quiet path must never block the primary one */}
-                      <Button
-                        size="sm"
-                        onClick={() => onDisposition(suggestion.id, 'accepted').catch(() => {})}
-                      >
+                      <Button size="sm" onClick={() => onDisposition(suggestion.id, 'accepted')}>
                         <Check aria-hidden size={14} weight="bold" />
                         Accept
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
-                        disabled={busy}
                         onClick={() => {
                           setEditingId(suggestion.id);
                           setDraft(suggestion.newText);
@@ -119,12 +118,7 @@ export default function SuggestionReview({
                         <PenNib aria-hidden size={14} />
                         Edit
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        disabled={busy}
-                        onClick={() => onDisposition(suggestion.id, 'rejected').catch(() => {})}
-                      >
+                      <Button size="sm" variant="danger" onClick={() => onDisposition(suggestion.id, 'rejected')}>
                         <X aria-hidden size={14} weight="bold" />
                         Reject
                       </Button>
@@ -136,11 +130,23 @@ export default function SuggestionReview({
                   <Chip tone={status === 'accepted' ? 'green' : status === 'edited' ? 'blue' : 'neutral'}>
                     {OUTCOME_LABEL[status]}
                   </Chip>
+                  {isDraft && <Chip tone="amber">Not applied</Chip>}
                   {status !== 'rejected' && finalText && (
                     <span className="text-sm text-ink">{finalText}</span>
                   )}
                   {status === 'rejected' && (
                     <span className="text-sm text-mute">your original wording stands</span>
+                  )}
+                  {isDraft && onUndo && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Undo decision for ${isSummary ? 'the headline' : 'this bullet'}`}
+                      onClick={() => onUndo(suggestion.id)}
+                    >
+                      <ArrowUUpLeft aria-hidden size={14} />
+                      Undo
+                    </Button>
                   )}
                 </div>
               )}

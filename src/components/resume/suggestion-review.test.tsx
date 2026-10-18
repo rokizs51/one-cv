@@ -23,41 +23,65 @@ const rows = [{ state: state(), originalText: 'Original bullet text' }];
 beforeEach(() => cleanup());
 
 describe('SuggestionReview', () => {
-  it('pending suggestion shows Accept/Edit/Reject; Accept is never disabled, even while busy', () => {
-    render(<SuggestionReview rows={rows} busy onDisposition={vi.fn()} />);
+  it('pending suggestion shows Accept/Edit/Reject, all immediately clickable', () => {
+    render(<SuggestionReview rows={rows} onDisposition={vi.fn()} />);
 
     screen.getByText('Original bullet text');
     const accept = screen.getByRole('button', { name: /^accept$/i });
-    expect(accept).not.toBeDisabled(); // accept is always clickable
+    expect(accept).not.toBeDisabled(); // decisions are local — never blocked
     screen.getByRole('button', { name: /^edit$/i });
     screen.getByRole('button', { name: /^reject$/i });
   });
 
-  it('Accept calls onDisposition exactly once with the suggestion id', async () => {
-    const onDisposition = vi.fn().mockResolvedValue(undefined);
-    render(<SuggestionReview rows={rows} busy={false} onDisposition={onDisposition} />);
+  it('Accept calls onDisposition exactly once with the suggestion id', () => {
+    const onDisposition = vi.fn();
+    render(<SuggestionReview rows={rows} onDisposition={onDisposition} />);
 
     fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
 
-    await waitFor(() => expect(onDisposition).toHaveBeenCalledTimes(1));
+    expect(onDisposition).toHaveBeenCalledTimes(1);
     expect(onDisposition).toHaveBeenCalledWith('sug-1', 'accepted');
   });
 
-  it('Reject sends only the id and rejected status (doc stays untouched by the server)', async () => {
-    const onDisposition = vi.fn().mockResolvedValue(undefined);
-    render(<SuggestionReview rows={rows} busy={false} onDisposition={onDisposition} />);
+  it('Reject sends only the id and rejected status (doc stays untouched by the server)', () => {
+    const onDisposition = vi.fn();
+    render(<SuggestionReview rows={rows} onDisposition={onDisposition} />);
 
     fireEvent.click(screen.getByRole('button', { name: /^reject$/i }));
 
-    await waitFor(() =>
-      expect(onDisposition).toHaveBeenCalledWith('sug-1', 'rejected')
-    );
+    expect(onDisposition).toHaveBeenCalledWith('sug-1', 'rejected');
     expect(onDisposition.mock.calls[0].length).toBeLessThanOrEqual(3);
   });
 
+  it('draft rows are marked Not applied and offer Undo', () => {
+    const onUndo = vi.fn();
+    const draftRows = [
+      {
+        state: state({ status: 'accepted' as const, finalText: 'Suggested sharper wording' }),
+        originalText: 'Original bullet text',
+        draft: true,
+      },
+    ];
+    render(<SuggestionReview rows={draftRows} onDisposition={vi.fn()} onUndo={onUndo} />);
+
+    screen.getByText('Accepted');
+    screen.getByText('Not applied');
+    fireEvent.click(screen.getByRole('button', { name: /undo/i }));
+    expect(onUndo).toHaveBeenCalledWith('sug-1');
+  });
+
+  it('applied (non-draft) rows show no Not applied marker and no Undo', () => {
+    const done = [
+      { state: state({ status: 'accepted' as const, finalText: 'Suggested sharper wording' }), originalText: 'Original bullet text' },
+    ];
+    render(<SuggestionReview rows={done} onDisposition={vi.fn()} onUndo={vi.fn()} />);
+    expect(screen.queryByText('Not applied')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /undo/i })).not.toBeInTheDocument();
+  });
+
   it('Edit opens a prefilled textarea and Save sends the edited text', async () => {
-    const onDisposition = vi.fn().mockResolvedValue(undefined);
-    render(<SuggestionReview rows={rows} busy={false} onDisposition={onDisposition} />);
+    const onDisposition = vi.fn();
+    render(<SuggestionReview rows={rows} onDisposition={onDisposition} />);
 
     fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
     const box = (await screen.findByRole('textbox')) as HTMLTextAreaElement;
@@ -73,7 +97,7 @@ describe('SuggestionReview', () => {
 
   it('dispositioned rows show their outcome and offer no actions (final per generation)', () => {
     const done = [{ state: state({ status: 'accepted' as const, finalText: 'Suggested sharper wording' }), originalText: 'Original bullet text' }];
-    render(<SuggestionReview rows={done} busy={false} onDisposition={vi.fn()} />);
+    render(<SuggestionReview rows={done} onDisposition={vi.fn()} />);
 
     screen.getByText(/accepted/i);
     screen.getByText('Suggested sharper wording');
@@ -88,7 +112,7 @@ describe('SuggestionReview', () => {
       }),
       originalText: 'My own career summary',
     }];
-    render(<SuggestionReview rows={summaryRow} busy={false} onDisposition={vi.fn()} />);
+    render(<SuggestionReview rows={summaryRow} onDisposition={vi.fn()} />);
 
     screen.getByText('Headline summary'); // not "Bullet rewrite"
     screen.getByText('My own career summary');

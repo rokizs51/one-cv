@@ -2,7 +2,7 @@ import { NextResponse, connection } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
-import { getResume, updateResumeFields } from '@/lib/db/resumes';
+import { getResume, updateResumeFields, deleteResume } from '@/lib/db/resumes';
 import { getJd } from '@/lib/db/jds';
 import { getItem, acceptText } from '@/lib/db/items';
 import { refitFromDoc } from '@/lib/resume/refit';
@@ -75,11 +75,61 @@ export async function GET(
 }
 
 /**
+ * DELETE /api/resumes/:id — permanently remove this stored CV. The profile
+ * items it drew from (and any accepted wording compounded into them) stay.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'unauthorized', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+    if (!UUID_RE.test(id)) {
+      return NextResponse.json(
+        { error: { code: 'invalid_request', message: 'Resume id must be a valid identifier' } },
+        { status: 400 }
+      );
+    }
+
+    const cookieStore = await cookies();
+    const supabase = await createRouteClient(cookieStore);
+
+    const resume = await getResume(supabase, id);
+    if (!resume) {
+      return NextResponse.json(
+        { error: { code: 'not_found', message: 'Resume not found' } },
+        { status: 404 }
+      );
+    }
+
+    await deleteResume(supabase, id);
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (error) {
+    console.error('Resume delete error:', error);
+    return NextResponse.json(
+      { error: { code: 'internal_error', message: 'An unexpected error occurred' } },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * PATCH /api/resumes/:id
  * Body (either arm, or both):
  *  - { pageLimit: 1 | 2 }                      — the honest "won't fit" escape hatch
- *  - { suggestionId, status: 'accepted'|'rejected'|'edited', finalText? }
- *      accepted/rejected flip the suggestion's disposition; 'edited' requires
+ *  - { suggestionId, status: 'accepted'|'rejected'|'edited', finalText? }  or
+ *    { dispositions: [same shape, …] }         — one decision or the whole
+ *      deferred review batch; a batch validates every entry before anything
+ *      is written and lands in a single resume update.
+ *      Accepted/rejected flip the suggestion's disposition; 'edited' requires
  *      finalText. Accepted/edited text enters the doc AND — for BULLET
  *      suggestions only — flows into the profile as canonical wording with
  *      provenance (compounding asset). A composed SUMMARY is accepted wording
@@ -107,7 +157,13 @@ export async function PATCH(
       );
     }
 
-    let body: { suggestionId?: unknown; status?: unknown; finalText?: unknown; pageLimit?: unknown };
+    let body: {
+      suggestionId?: unknown;
+      status?: unknown;
+      finalText?: unknown;
+      pageLimit?: unknown;
+      dispositions?: unknown;
+    };
     try {
       body = await request.json();
     } catch {
@@ -141,105 +197,136 @@ export async function PATCH(
       patch.pageLimit = body.pageLimit;
     }
 
-    // --- suggestion disposition arm --------------------------------------
-    if (body.suggestionId !== undefined || body.status !== undefined) {
-      if (typeof body.suggestionId !== 'string' || typeof body.status !== 'string') {
-        return NextResponse.json(
-          { error: { code: 'invalid_request', message: 'Fields "suggestionId" and "status" are required together' } },
-          { status: 400 }
-        );
-      }
-      if (!(TERMINAL as readonly string[]).includes(body.status)) {
-        return NextResponse.json(
-          { error: { code: 'invalid_request', message: 'Unknown disposition status' } },
-          { status: 400 }
-        );
-      }
-      const status = body.status as (typeof TERMINAL)[number];
+    // --- suggestion disposition arm (single or batch) ---------------------
+    if (body.dispositions !== undefined && !Array.isArray(body.dispositions)) {
+      return NextResponse.json(
+        { error: { code: 'invalid_request', message: 'Field "dispositions" must be an array' } },
+        { status: 400 }
+      );
+    }
+    type Disposal = { suggestionId?: unknown; status?: unknown; finalText?: unknown };
+    const disposals: Disposal[] = Array.isArray(body.dispositions)
+      ? (body.dispositions as Disposal[])
+      : body.suggestionId !== undefined || body.status !== undefined
+        ? [{ suggestionId: body.suggestionId, status: body.status, finalText: body.finalText }]
+        : [];
+    // shortcut: cap matches the largest realistic suggestion count; raise if a
+    // generation ever exceeds 50 suggestions.
+    if (disposals.length > 50) {
+      return NextResponse.json(
+        { error: { code: 'invalid_request', message: 'Send at most 50 dispositions per request' } },
+        { status: 400 }
+      );
+    }
 
-      const idx = resume.statuses.findIndex((s) => s.suggestion.id === body.suggestionId);
-      if (idx === -1) {
-        return NextResponse.json(
-          { error: { code: 'not_found', message: 'Suggestion not found on this resume' } },
-          { status: 404 }
-        );
-      }
-      if (resume.statuses[idx].status !== 'pending') {
-        // Processing is final per generation: never silently re-apply.
-        return NextResponse.json(
-          { error: { code: 'already_dispositioned', message: 'That suggestion was already accepted, edited, or rejected' } },
-          { status: 409 }
-        );
-      }
+    if (disposals.length > 0) {
+      const nextStatuses = [...resume.statuses];
+      let nextDoc: ResumeDoc | null = null;
+      const toCompound: { itemId: string; text: string }[] = [];
 
-      const entry: SuggestionState = { ...resume.statuses[idx] };
-      let applied: string | null = null;
-
-      if (status === 'rejected') {
-        entry.status = 'rejected';
-        entry.finalText = null; // doc keeps the original wording
-      } else {
-        const text =
-          status === 'edited'
-            ? typeof body.finalText === 'string' && body.finalText.trim()
-              ? body.finalText.trim()
-              : null
-            : entry.suggestion.newText;
-        if (text === null) {
+      // Stage every decision first: an invalid entry 4xx/409s before any
+      // write, so one bad tap in the batch cannot half-apply the review.
+      for (const d of disposals) {
+        if (typeof d.suggestionId !== 'string' || typeof d.status !== 'string') {
           return NextResponse.json(
-            { error: { code: 'invalid_request', message: 'An edited suggestion needs new text' } },
+            { error: { code: 'invalid_request', message: 'Fields "suggestionId" and "status" are required together' } },
             { status: 400 }
           );
         }
-        entry.status = status;
-        entry.finalText = text;
-        applied = text;
-      }
+        if (!(TERMINAL as readonly string[]).includes(d.status)) {
+          return NextResponse.json(
+            { error: { code: 'invalid_request', message: 'Unknown disposition status' } },
+            { status: 400 }
+          );
+        }
+        const status = d.status as (typeof TERMINAL)[number];
 
-      if (applied !== null) {
-        const doc: ResumeDoc = structuredClone(resume.doc);
-        const sug = entry.suggestion;
-        if (sug.kind === 'summary') {
-          // CV-local headline text; the profile's own career snapshot is
-          // deliberately NOT written (spec: "The snapshot itself is never
-          // overwritten by composition").
-          doc.summary = applied;
+        const idx = nextStatuses.findIndex((s) => s.suggestion.id === d.suggestionId);
+        if (idx === -1) {
+          return NextResponse.json(
+            { error: { code: 'not_found', message: 'Suggestion not found on this resume' } },
+            { status: 404 }
+          );
+        }
+        if (nextStatuses[idx].status !== 'pending') {
+          // Processing is final per generation: never silently re-apply.
+          // (Also rejects a suggestionId repeated inside this batch.)
+          return NextResponse.json(
+            { error: { code: 'already_dispositioned', message: 'That suggestion was already accepted, edited, or rejected' } },
+            { status: 409 }
+          );
+        }
+
+        const entry: SuggestionState = { ...nextStatuses[idx] };
+        let applied: string | null = null;
+
+        if (status === 'rejected') {
+          entry.status = 'rejected';
+          entry.finalText = null; // doc keeps the original wording
         } else {
-          let hit = false;
-          for (const section of doc.sections) {
-            for (const item of section.items) {
-              if (item.sourceItemId === sug.targetItemId) {
-                item.text = applied;
-                hit = true;
-              }
-            }
-          }
-          if (!hit) {
+          const text =
+            status === 'edited'
+              ? typeof d.finalText === 'string' && d.finalText.trim()
+                ? d.finalText.trim()
+                : null
+              : entry.suggestion.newText;
+          if (text === null) {
             return NextResponse.json(
-              { error: { code: 'not_found', message: 'The suggested line is no longer in this CV' } },
-              { status: 409 }
+              { error: { code: 'invalid_request', message: 'An edited suggestion needs new text' } },
+              { status: 400 }
             );
           }
+          entry.status = status;
+          entry.finalText = text;
+          applied = text;
         }
-        patch.doc = doc;
 
-        // Compounding asset: accepted bullet wording flows back into the
-        // profile (original preserved under provenance, one-click revert).
-        // The canonicalText guard makes accept near-idempotent: if the
-        // resume-write below fails after this call, the still-pending retry
-        // lands the doc change WITHOUT double-compounding the provenance
-        // chain (a duplicated {text:A, original:A} entry would silently
-        // defeat the promised one-click revert).
-        if (status === 'accepted' && sug.kind === 'bullet') {
-          const profileItem = await getItem(supabase, sug.targetItemId);
-          if (profileItem && profileItem.canonicalText !== applied) {
-            await acceptText(supabase, sug.targetItemId, profileItem, applied, id);
+        if (applied !== null) {
+          if (nextDoc === null) nextDoc = structuredClone(resume.doc);
+          const sug = entry.suggestion;
+          if (sug.kind === 'summary') {
+            // CV-local headline text; the profile's own career snapshot is
+            // deliberately NOT written (spec: "The snapshot itself is never
+            // overwritten by composition").
+            nextDoc.summary = applied;
+          } else {
+            let hit = false;
+            for (const section of nextDoc.sections) {
+              for (const item of section.items) {
+                if (item.sourceItemId === sug.targetItemId) {
+                  item.text = applied;
+                  hit = true;
+                }
+              }
+            }
+            if (!hit) {
+              return NextResponse.json(
+                { error: { code: 'not_found', message: 'The suggested line is no longer in this CV' } },
+                { status: 409 }
+              );
+            }
+            if (status === 'accepted') toCompound.push({ itemId: sug.targetItemId, text: applied });
           }
+        }
+
+        nextStatuses[idx] = entry;
+      }
+
+      // Compounding asset: accepted bullet wording flows back into the
+      // profile (original preserved under provenance, one-click revert).
+      // The canonicalText guard makes accept near-idempotent: if the
+      // resume-write below fails after these calls, a still-pending retry
+      // lands the doc change WITHOUT double-compounding the provenance
+      // chain (a duplicated {text:A, original:A} entry would silently
+      // defeat the promised one-click revert).
+      for (const c of toCompound) {
+        const profileItem = await getItem(supabase, c.itemId);
+        if (profileItem && profileItem.canonicalText !== c.text) {
+          await acceptText(supabase, c.itemId, profileItem, c.text, id);
         }
       }
 
-      const nextStatuses = [...resume.statuses];
-      nextStatuses[idx] = entry;
+      if (nextDoc !== null) patch.doc = nextDoc;
       patch.statuses = nextStatuses;
     }
 

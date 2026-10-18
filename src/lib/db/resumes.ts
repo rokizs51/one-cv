@@ -144,6 +144,15 @@ export async function listResumes(
 }
 
 /**
+ * Permanently delete a resume row. RLS scopes the delete to the owner, so a
+ * foreign id removes nothing (callers 404 up front via getResume).
+ */
+export async function deleteResume(supa: SupabaseClient, resumeId: string): Promise<void> {
+  const { error } = await supa.from('generated_resumes').delete().eq('id', resumeId);
+  if (error) throw error;
+}
+
+/**
  * Get a resume by ID.
  * Returns null only for a genuinely absent row (PGRST116 — RLS also reports
  * foreign rows this way). Database errors THROW like every other repo method,
