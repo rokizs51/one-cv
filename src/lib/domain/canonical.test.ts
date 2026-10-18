@@ -19,6 +19,17 @@ describe('canonicalTextFor', () => {
     expect(text).toBe('Senior Engineer — Acme (2022–2025)\n• Shipped X\n• Led Y');
   });
 
+  it('experience: pasted list markers are stripped so bullets never render "• -"', () => {
+    const text = canonicalTextFor('experience', {
+      company: 'Acme',
+      role: 'Engineer',
+      start: '2022',
+      end: '',
+      bullets: ['- Led X', '• Did Y', '* Ran Z', 'Plain W'],
+    });
+    expect(text).toBe('Engineer — Acme (2022–present)\n• Led X\n• Did Y\n• Ran Z\n• Plain W');
+  });
+
   it('experience with no end date reads "present"; empty bullets render none', () => {
     const text = canonicalTextFor('experience', {
       company: 'Acme',

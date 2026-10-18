@@ -133,7 +133,18 @@ export function ResumeDocument({ doc, pageLimit }: ResumeDocumentProps) {
             <Text style={styles.sectionTitle}>{SECTION_LABEL[section.id]}</Text>
             <View style={styles.sectionRule} />
             {JOINED_SECTIONS.has(section.id) ? (
-              <Text style={styles.body}>{section.items.map((i) => i.text).join(', ')}</Text>
+              // Short names join into one compact block; once an entry carries
+              // a description, comma-joining turns it into an unreadable blob
+              // — give every entry its own line instead.
+              section.items.some((i) => i.text.length > 48) ? (
+                section.items.map((i) => (
+                  <Text key={i.sourceItemId} style={styles.body}>
+                    {i.text}
+                  </Text>
+                ))
+              ) : (
+                <Text style={styles.body}>{section.items.map((i) => i.text).join(', ')}</Text>
+              )
             ) : (
               section.items.map((item) => <Entry key={item.sourceItemId} text={item.text} />)
             )}

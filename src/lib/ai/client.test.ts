@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { JSONParseError, TypeValidationError, NoObjectGeneratedError } from 'ai';
-import { isSchemaParseError } from './client';
+import { isSchemaParseError, preserveHeaderLines } from './client';
 
 describe('isSchemaParseError', () => {
   it('returns true for JSONParseError', () => {
@@ -39,5 +39,31 @@ describe('isSchemaParseError', () => {
     expect(isSchemaParseError(null)).toBe(false);
     expect(isSchemaParseError(undefined)).toBe(false);
     expect(isSchemaParseError({ message: 'fake error' })).toBe(false);
+  });
+});
+
+describe('preserveHeaderLines', () => {
+  const items = [{ itemId: 'e1', text: 'Dev — Acme (2022–2023)\n• built X\n• led Y' }];
+
+  it('restores the title line when the rewrite drops it', () => {
+    const out = preserveHeaderLines(
+      [{ targetItemId: 'e1', newText: 'Engineered X and led Y at Acme' }],
+      items
+    );
+    expect(out[0].newText).toBe('Dev — Acme (2022–2023)\nEngineered X and led Y at Acme');
+  });
+
+  it('leaves a rewrite that kept the title line untouched', () => {
+    const kept = 'Dev — Acme (2022–2023)\n• Engineered X';
+    const out = preserveHeaderLines([{ targetItemId: 'e1', newText: kept }], items);
+    expect(out[0].newText).toBe(kept);
+  });
+
+  it('single-line items (skills, projects) pass through unchanged', () => {
+    const out = preserveHeaderLines(
+      [{ targetItemId: 's1', newText: 'Go (Advanced)' }],
+      [{ itemId: 's1', text: 'Go' }]
+    );
+    expect(out[0].newText).toBe('Go (Advanced)');
   });
 });

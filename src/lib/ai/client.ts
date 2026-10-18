@@ -84,6 +84,25 @@ const EnhanceResponseSchema = z.object({
 });
 
 /**
+ * Experience items are "Role — Company (dates)\n• bullet…". A rewrite that
+ * drops the title line would delete the header from the CV AND, on accept,
+ * from the profile item (acceptText replaces the whole canonical text) — the
+ * floating headerless paragraph bug. Prompt says keep it; this makes it
+ * structural: if the model dropped or altered it, restore the original line.
+ */
+export function preserveHeaderLines<T extends { targetItemId: string; newText: string }>(
+  suggestions: T[],
+  items: { itemId: string; text: string }[]
+): T[] {
+  return suggestions.map((s) => {
+    const lines = items.find((it) => it.itemId === s.targetItemId)?.text.split('\n') ?? [];
+    const header = lines.length > 1 && !lines[0].trimStart().startsWith('•') ? lines[0] : null;
+    if (!header || s.newText.split('\n')[0].trim() === header.trim()) return s;
+    return { ...s, newText: `${header}\n${s.newText}` };
+  });
+}
+
+/**
  * Creates the real GenAI provider via AI SDK.
  *
  * Both supported providers speak the Anthropic wire protocol (aiConfig()
@@ -175,6 +194,7 @@ Instructions:
 - Only use facts from the original text - do NOT invent new information
 - Preserve the core meaning and achievements
 - Make the language more impactful and relevant to the target role
+- An item may start with a title line ("Role — Company (dates)") followed by bullet lines that start with "•". Keep such title lines verbatim and rewrite only the bullet lines.
 - Return a JSON object with a "suggestions" array
 
 Each suggestion must have:
@@ -188,13 +208,16 @@ Each suggestion must have:
         prompt,
       });
 
-      return result.suggestions.map((s, i) => ({
-        id: `suggestion-${i}`,
-        targetItemId: s.itemId,
-        kind: 'bullet' as const,
-        newText: s.newText,
-        basis: s.basis,
-      }));
+      return preserveHeaderLines(
+        result.suggestions.map((s, i) => ({
+          id: `suggestion-${i}`,
+          targetItemId: s.itemId,
+          kind: 'bullet' as const,
+          newText: s.newText,
+          basis: s.basis,
+        })),
+        items
+      );
     },
 
     async composeSummary(req: SummaryRequest): Promise<string> {

@@ -41,7 +41,11 @@ function assemble(
       return str('text');
     case 'experience': {
       const head = `${str('role')}${str('company') ? ` — ${str('company')}` : ''}${dateRange(str('start'), str('end'))}`;
-      const bullets = list('bullets');
+      // Users paste bullets with their own list markers; keep one marker (the
+      // "• " added below) instead of rendering "• - Designed…".
+      const bullets = list('bullets')
+        .map((b) => b.replace(/^[-–—•*]\s+/, '').trim())
+        .filter((b) => b !== '');
       return bullets.length > 0 ? `${head}\n${bullets.map((b) => `• ${b}`).join('\n')}` : head;
     }
     case 'education': {
