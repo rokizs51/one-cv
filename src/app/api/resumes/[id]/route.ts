@@ -5,6 +5,7 @@ import { getSessionUser } from '@/lib/auth/session';
 import { getResume, updateResumeFields, deleteResume } from '@/lib/db/resumes';
 import { getJd } from '@/lib/db/jds';
 import { getItem, acceptText } from '@/lib/db/items';
+import { preserveHeaderLines } from '@/lib/ai/client';
 import { refitFromDoc } from '@/lib/resume/refit';
 import type { JdExtraction, ResumeDoc, SuggestionState } from '@/lib/domain/types';
 
@@ -294,6 +295,15 @@ export async function PATCH(
             for (const section of nextDoc.sections) {
               for (const item of section.items) {
                 if (item.sourceItemId === sug.targetItemId) {
+                  // Suggestions generated before the enhance header guard (or
+                  // flattened by the model) can drop the "Role — Company
+                  // (dates)" line — restore it from the doc's current text
+                  // before it overwrites the CV and the profile item.
+                  applied = preserveHeaderLines(
+                    [{ targetItemId: sug.targetItemId, newText: applied }],
+                    [{ itemId: sug.targetItemId, text: item.text }]
+                  )[0].newText;
+                  entry.finalText = applied;
                   item.text = applied;
                   hit = true;
                 }
