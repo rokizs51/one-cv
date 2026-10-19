@@ -55,9 +55,13 @@ function assemble(
     }
     case 'project': {
       const tech = list('tech');
-      const body = str('description');
+      // A project canonical is ONE line; a pasted description with mid-sentence
+      // newlines would split it and trick the renderer's title/bullet heuristic
+      // into bolding half a sentence — fold whitespace runs to single spaces.
+      const oneLine = (s: string): string => s.replace(/\s+/g, ' ');
+      const body = oneLine(str('description'));
       const suffix = `${body ? ` — ${body}` : ''}${tech.length ? ` (${tech.join(', ')})` : ''}`;
-      return `${str('name')}${suffix}`;
+      return `${oneLine(str('name'))}${suffix}`;
     }
     case 'award': {
       const issuer = str('issuer');
@@ -73,6 +77,25 @@ function assemble(
       return level ? `${str('name')} (${level})` : str('name');
     }
   }
+}
+
+/**
+ * Inverts the project canonical for rendering: name and tech come back bold,
+ * the description stays plain. Returns the pieces as slices of the original
+ * string (separators ride along) so re-joining reproduces `text` exactly.
+ * shortcut: parses the " — " / " (...)" separators textually — a project NAME
+ * containing " — " splits early; upgrade if real profiles hit it.
+ */
+export function splitProject(text: string): { name: string; desc: string; tech: string } {
+  const open = text.endsWith(')') ? text.lastIndexOf(' (') : -1;
+  const tech = open > 0 ? text.slice(open) : '';
+  const head = tech ? text.slice(0, open) : text;
+  const sep = head.indexOf(' — ');
+  return {
+    name: sep > 0 ? head.slice(0, sep) : head,
+    desc: sep > 0 ? head.slice(sep) : '',
+    tech,
+  };
 }
 
 function dateRange(start: string, end: string): string {

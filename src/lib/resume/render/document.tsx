@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { ResumeDoc, SectionId } from '@/lib/domain/types';
+import { splitProject } from '@/lib/domain/canonical';
 
 /**
  * The printed CV, structured to the ATS reference in
@@ -96,6 +97,20 @@ function Entry({ text }: { text: string }) {
   );
 }
 
+/** Projects are one line "Name — description (Tech)": name and tech bold. */
+function ProjectEntry({ text }: { text: string }) {
+  const { name, desc, tech } = splitProject(text);
+  return (
+    <View style={styles.entry}>
+      <Text>
+        <Text style={styles.entryHead}>{name}</Text>
+        {desc}
+        {tech !== '' && <Text style={styles.entryHead}>{tech}</Text>}
+      </Text>
+    </View>
+  );
+}
+
 interface ResumeDocumentProps {
   doc: ResumeDoc;
   pageLimit: 1 | 2;
@@ -146,7 +161,13 @@ export function ResumeDocument({ doc, pageLimit }: ResumeDocumentProps) {
                 <Text style={styles.body}>{section.items.map((i) => i.text).join(', ')}</Text>
               )
             ) : (
-              section.items.map((item) => <Entry key={item.sourceItemId} text={item.text} />)
+              section.items.map((item) =>
+                section.id === 'projects' ? (
+                  <ProjectEntry key={item.sourceItemId} text={item.text} />
+                ) : (
+                  <Entry key={item.sourceItemId} text={item.text} />
+                )
+              )
             )}
           </View>
         ))}

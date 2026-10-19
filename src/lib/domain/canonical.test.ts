@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalTextFor } from './canonical';
+import { canonicalTextFor, splitProject } from './canonical';
 
 describe('canonicalTextFor', () => {
   it('career_snapshot is the text verbatim', () => {
@@ -59,6 +59,28 @@ describe('canonicalTextFor', () => {
       tech: ['Rust', 'WASM'],
     });
     expect(text).toBe('OpenCV-Tools — CLI helpers (Rust, WASM)');
+  });
+
+  it('project: mid-sentence newlines from a pasted description fold to one line', () => {
+    const text = canonicalTextFor('project', {
+      name: 'BitURL',
+      description: 'URL shortener that allows \n shortening a long URL with\ncustom slug',
+      tech: ['Go'],
+    });
+    expect(text).toBe('BitURL — URL shortener that allows shortening a long URL with custom slug (Go)');
+  });
+
+  it('splitProject inverts the project canonical; pieces rejoin exactly', () => {
+    const full = splitProject('BitURL — URL shortener (Go, WASM)');
+    expect(full).toEqual({ name: 'BitURL', desc: ' — URL shortener', tech: ' (Go, WASM)' });
+    expect(full.name + full.desc + full.tech).toBe('BitURL — URL shortener (Go, WASM)');
+    expect(splitProject('Solo')).toEqual({ name: 'Solo', desc: '', tech: '' });
+    // description without tech
+    expect(splitProject('Final Autos — a marketplace')).toEqual({
+      name: 'Final Autos',
+      desc: ' — a marketplace',
+      tech: '',
+    });
   });
 
   it('award: title — issuer (year)', () => {
