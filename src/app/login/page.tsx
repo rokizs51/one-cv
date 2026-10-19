@@ -23,7 +23,7 @@ export default async function LoginPage() {
           >
             <Scissors size={17} weight="bold" />
           </span>
-          ResumeTailor
+          Sever
         </div>
         <div className="rounded-3xl border border-line bg-surface p-8">
           <div className="text-center">

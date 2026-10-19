@@ -14,11 +14,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "ResumeTailor — one profile, a CV for every job",
-    template: "%s · ResumeTailor",
+    default: "Sever — one profile, a CV for every job",
+    template: "%s · Sever",
   },
   description:
-    "Paste a job description and ResumeTailor builds a one-page, ATS-readable CV from what you've actually recorded. Nothing invented; every edit reversible.",
+    "Paste a job description and Sever builds a one-page, ATS-readable CV from what you've actually recorded. Nothing invented; every edit reversible.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

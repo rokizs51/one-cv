@@ -210,15 +210,8 @@ export default function DashboardApp() {
 
         {/* Generated CVs */}
         <section aria-labelledby="cv-list">
-          <div className="mb-3 flex items-center justify-between gap-4">
+          <div className="mb-3">
             <SectionHeading id="cv-list">Generated CVs</SectionHeading>
-            <Link
-              href="/generate"
-              className={buttonCls('primary', 'sm')}
-            >
-              <Plus aria-hidden size={16} weight="bold" />
-              New tailored CV
-            </Link>
           </div>
           <VersionList resumes={resumes} onDelete={removeResume} />
         </section>

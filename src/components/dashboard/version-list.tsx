@@ -50,14 +50,9 @@ export default function VersionList({
         </span>
         <p className="text-sm font-medium text-ink">No CVs yet</p>
         <p className="max-w-xs text-sm text-mute">
-          Paste a job description and we&apos;ll build your first one from your profile.
+          Paste a job description in the box above — we&apos;ll build your first one from your
+          profile.
         </p>
-        <Link
-          href="/generate"
-          className="mt-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-on-primary transition-colors hover:bg-primary-press active:scale-[0.97]"
-        >
-          Create your first CV
-        </Link>
       </Card>
     );
   }

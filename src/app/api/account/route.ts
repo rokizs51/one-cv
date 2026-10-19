@@ -57,7 +57,7 @@ export async function GET() {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="resumetailor-export-${body.month}.json"`,
+        'Content-Disposition': `attachment; filename="sever-export-${body.month}.json"`,
         'Cache-Control': 'no-store',
       },
     });

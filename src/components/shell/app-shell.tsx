@@ -118,7 +118,7 @@ function Wordmark() {
       >
         <Scissors size={16} weight="bold" />
       </span>
-      <span className="text-sm font-semibold tracking-tight text-ink">ResumeTailor</span>
+      <span className="text-sm font-semibold tracking-tight text-ink">Sever</span>
     </Link>
   );
 }
@@ -160,7 +160,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
           {collapsed ? (
             <Link
               href="/dashboard"
-              title="ResumeTailor"
+              title="Sever"
               className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-bar-blue to-bar-violet text-white transition-colors hover:brightness-95 mx-auto"
             >
               <Scissors aria-hidden size={18} weight="bold" />

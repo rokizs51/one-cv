@@ -30,7 +30,7 @@ export default async function HomePage() {
           >
             <Scissors size={16} weight="bold" />
           </span>
-          ResumeTailor
+          Sever
         </span>
         <nav aria-label="Public" className="flex items-center gap-3">
           <Link
@@ -61,7 +61,7 @@ export default async function HomePage() {
               <span className="text-mute">A CV that fits every job.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-lg text-base leading-7 text-mute">
-              Paste the job description. ResumeTailor picks what you&apos;ve actually done,
+              Paste the job description. Sever picks what you&apos;ve actually done,
               puts it first, and fits it to one clean, ATS-readable page — in minutes,
               for every application.
             </p>
@@ -172,7 +172,7 @@ export default async function HomePage() {
       </section>
 
       <footer className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-6 py-6 text-xs text-mute">
-        <span>ResumeTailor</span>
+        <span>Sever</span>
         <span>Your data belongs to you — export or delete it any time.</span>
       </footer>
     </main>
