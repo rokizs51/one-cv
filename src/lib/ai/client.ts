@@ -1,11 +1,123 @@
 import { generateText, JSONParseError, TypeValidationError, NoObjectGeneratedError } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
-import type { GenAI, EnhanceRequest, SummaryRequest } from './types';
-import { JdNotParseableError } from './types';
+import type { GenAI, EnhanceRequest, SummaryRequest, SkillGroup } from './types';
+import { JdNotParseableError, AnalysisNotParseableError } from './types';
+import type { MatchAnalysisRequest, MatchAnalysisModelOutput } from '@/lib/match/match-types';
+import { MatchModelOutputSchema } from '@/lib/match/match-types';
 import { aiConfig } from './env';
 import { JdExtractionSchema } from '@/lib/domain/schemas';
-import type { JdExtraction, Suggestion } from '@/lib/domain/types';
+import type { JdExtraction, Suggestion, JdRequirement } from '@/lib/domain/types';
+import { normalizeManualText, stripBullet } from '@/lib/domain/canonical';
+
+/** One retry on malformed model output only (same rule extractJd pioneered);
+ * network/auth/rate-limit errors re-throw immediately. */
+async function withParseRetry<T>(call: () => Promise<T>, exhausted: (last: Error | null) => Error): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await call();
+    } catch (error) {
+      if (!isSchemaParseError(error)) throw error;
+      lastError = error as Error;
+    }
+  }
+  throw exhausted(lastError);
+}
+
+/**
+ * Every number a rewrite introduces must already exist in its source text —
+ * the no-invented-metrics rule as code, not as prompt advice.
+ */
+const NUMBER_TOKEN = /\d+(?:[.,]\d+)?/g;
+export function hasUnsupportedNumbers(text: string, source: string): boolean {
+  const allowed = new Set(source.match(NUMBER_TOKEN) ?? []);
+  return (text.match(NUMBER_TOKEN) ?? []).some((t) => !allowed.has(t));
+}
+
+/**
+ * Trust-boundary pass over model suggestions: hallucinated item ids are
+ * dropped, bullet markers normalized away (renderer owns them), and a rewrite
+ * carrying an unsupported metric is downgraded to the user's own wording with
+ * an explicit ask for the evidence.
+ */
+export function sanitizeSuggestions(
+  suggestions: Suggestion[],
+  items: { itemId: string; text: string }[]
+): Suggestion[] {
+  const out: Suggestion[] = [];
+  for (const s of suggestions) {
+    const src = items.find((it) => it.itemId === s.targetItemId);
+    if (!src) continue;
+    const clean = normalizeManualText(s.newText);
+    if (hasUnsupportedNumbers(clean, src.text)) {
+      out.push({
+        ...s,
+        newText: src.text,
+        basis: 'Skipped a rewrite that added a number your entry does not contain. Add that figure to the entry if it is real, or accept to keep your wording.',
+      });
+    } else {
+      out.push({ ...s, newText: clean });
+    }
+  }
+  return out;
+}
+
+/**
+ * Trust-boundary pass over skill groups: hallucinated and duplicate names are
+ * dropped, then every input name no group claimed lands in "Other" — grouping
+ * is presentation and must never lose a real skill on the way to the page.
+ */
+export function finalizeGroups(
+  names: string[],
+  groups: { category: string; skills: string[] }[]
+): SkillGroup[] {
+  const wanted = new Set(names);
+  const placed = new Set<string>();
+  const out: SkillGroup[] = [];
+  for (const g of groups) {
+    const skills: string[] = [];
+    for (const name of g.skills) {
+      if (wanted.has(name) && !placed.has(name)) {
+        placed.add(name);
+        skills.push(name);
+      }
+    }
+    if (skills.length > 0) out.push({ category: g.category.trim() || 'Other', skills });
+  }
+  const leftovers = names.filter((n) => !placed.has(n));
+  if (leftovers.length > 0) out.push({ category: 'Other', skills: leftovers });
+  return out;
+}
+
+/**
+ * Requirement records are post-processed, never stored raw: ids assigned
+ * deterministically (the model doesn't get to name things), descriptions
+ * deduped case/whitespace-insensitively, aliases deduped, and a
+ * sourceExcerpt kept only when it is verbatim in the JD — an unverifiable
+ * citation is dropped to null rather than trusted.
+ */
+export function finalizeRequirements(reqs: JdRequirement[], jdRaw: string): JdRequirement[] {
+  const lower = jdRaw.toLowerCase();
+  const seen = new Set<string>();
+  const out: JdRequirement[] = [];
+  for (const r of reqs) {
+    const key = r.description.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (key === '' || seen.has(key)) continue;
+    seen.add(key);
+    const excerpt = r.sourceExcerpt !== null && lower.includes(r.sourceExcerpt.toLowerCase())
+      ? r.sourceExcerpt
+      : null;
+    out.push({
+      ...r,
+      id: `req-${r.category}-${out.length}`,
+      description: r.description.trim(),
+      aliases: [...new Set(r.aliases.map((a) => a.trim()).filter((a) => a !== ''))],
+      sourceExcerpt: excerpt,
+    });
+  }
+  return out;
+}
 
 /**
  * Checks if an error is a schema/parse error that should trigger retry.
@@ -70,6 +182,15 @@ async function safeParseJsonObject(text: string): Promise<{ ok: true; value: unk
   }
 }
 
+const SkillGroupsSchema = z.object({
+  groups: z.array(
+    z.object({
+      category: z.string(),
+      skills: z.array(z.string()),
+    })
+  ),
+});
+
 /**
  * Schema for enhance response - array of suggestions.
  */
@@ -97,7 +218,8 @@ export function preserveHeaderLines<T extends { targetItemId: string; newText: s
   return suggestions.map((s) => {
     const lines = items.find((it) => it.itemId === s.targetItemId)?.text.split('\n') ?? [];
     const header = lines.length > 1 && !lines[0].trimStart().startsWith('•') ? lines[0] : null;
-    if (!header || s.newText.split('\n')[0].trim() === header.trim()) return s;
+    // Compare marker-blind: the model may reprint the header as "• Role — Co".
+    if (!header || stripBullet(s.newText.split('\n')[0]) === stripBullet(header)) return s;
     return { ...s, newText: `${header}\n${s.newText}` };
   });
 }
@@ -124,7 +246,7 @@ export function createGenAI(): GenAI {
 
   return {
     async extractJd(jdText: string): Promise<JdExtraction> {
-      const prompt = `Extract structured information from this job description. 
+      const prompt = `Extract structured information from this job description.
 Only extract facts explicitly stated. Do not infer or assume anything.
 
 Job Description:
@@ -137,34 +259,28 @@ Return a JSON object with these fields:
 - seniority: string (e.g., "junior", "mid", "senior", "lead")
 - domain: string (industry or field)
 - tools: array of strings (software, frameworks, platforms)
-- responsibilities: array of strings (key duties)`;
+- responsibilities: array of strings (key duties)
+- requirements: array of every distinct requirement the posting asks for. Each has:
+  description (one concise line), category (one of technical_skill, responsibility,
+  experience, seniority, domain_knowledge, education_cert, communication),
+  importance ("mandatory" or "preferred" — do NOT treat every line as mandatory),
+  aliases (equivalent terms, e.g. "postgreSQL" for "PostgreSQL"; may be empty),
+  sourceExcerpt (the VERBATIM sentence or phrase from the posting this came from).
+Do not interpret vague language as more specific than the posting states.`;
 
-      let lastError: Error | null = null;
-
-      // Retry once on schema/parse failure only
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          return await generateJson({
+      const extraction = await withParseRetry(
+        () =>
+          generateJson({
             model: anthropic(config.extractionModel),
             schema: JdExtractionSchema,
             prompt,
-          });
-        } catch (error) {
-          // Non-parse errors (network, auth, rate limit) re-throw immediately
-          if (!isSchemaParseError(error)) {
-            throw error;
-          }
-          lastError = error as Error;
-          // Retry only if this was the first attempt
-          if (attempt === 0) {
-            continue;
-          }
-        }
-      }
-
-      throw new JdNotParseableError(
-        `Failed to parse job description after retry: ${lastError?.message}`
+          }),
+        (last) => new JdNotParseableError(`Failed to parse job description after retry: ${last?.message}`)
       );
+
+      return extraction.requirements
+        ? { ...extraction, requirements: finalizeRequirements(extraction.requirements, jdText) }
+        : extraction;
     },
 
     async enhance(req: EnhanceRequest): Promise<Suggestion[]> {
@@ -202,20 +318,30 @@ Each suggestion must have:
 - newText: the enhanced bullet text
 - basis: brief explanation of what was changed and why`;
 
-      const result = await generateJson({
-        model: anthropic(config.enhanceModel),
-        schema: EnhanceResponseSchema,
-        prompt,
-      });
+      // Retry once on malformed output, same as every other structured call —
+      // before this, one bad JSON response from the model 500'd the whole
+      // generation.
+      const result = await withParseRetry(
+        () =>
+          generateJson({
+            model: anthropic(config.enhanceModel),
+            schema: EnhanceResponseSchema,
+            prompt,
+          }),
+        (last) => new Error(`Enhance output unusable after retry: ${last?.message ?? 'parse failure'}`)
+      );
 
-      return preserveHeaderLines(
-        result.suggestions.map((s, i) => ({
-          id: `suggestion-${i}`,
-          targetItemId: s.itemId,
-          kind: 'bullet' as const,
-          newText: s.newText,
-          basis: s.basis,
-        })),
+      return sanitizeSuggestions(
+        preserveHeaderLines(
+          result.suggestions.map((s, i) => ({
+            id: `suggestion-${i}`,
+            targetItemId: s.itemId,
+            kind: 'bullet' as const,
+            newText: s.newText,
+            basis: s.basis,
+          })),
+          items
+        ),
         items
       );
     },
@@ -256,6 +382,76 @@ Instructions:
       // Ensure max 3 lines
       const lines = result.text.split('\n').filter(Boolean).slice(0, 3);
       return lines.join('\n');
+    },
+
+    async groupSkills(names: string[]): Promise<SkillGroup[]> {
+      const prompt = `Group these skill names into a few sensible categories for a resume SKILLS section
+(e.g. Languages, Backend, Databases, DevOps & Tools, Frameworks, Data & ML, Testing — use your judgment).
+Rules:
+- Every name must appear in exactly one group, spelled EXACTLY as given.
+- Invent nothing; these are presentation groups only.
+
+Skills: ${names.join(', ')}
+
+Return a JSON object: {"groups": [{"category": "…", "skills": ["…"]}, …]}`;
+
+      const result = await withParseRetry(
+        () =>
+          generateJson({
+            model: anthropic(config.extractionModel),
+            schema: SkillGroupsSchema,
+            prompt,
+          }),
+        (last) => new Error(`Skill grouping unusable after retry: ${last?.message ?? 'parse failure'}`)
+      );
+
+      return finalizeGroups(names, result.groups);
+    },
+
+    async analyzeMatch(req: MatchAnalysisRequest): Promise<MatchAnalysisModelOutput> {
+      const reqLines = req.requirements
+        .map((r) => `- [${r.id}] (${r.importance}, ${r.category}) ${r.description}` +
+          (r.aliases.length ? ` — also known as: ${r.aliases.join(', ')}` : '') +
+          (r.sourceExcerpt ? ` — JD says: "${r.sourceExcerpt}"` : ''))
+        .join('\n');
+      const itemLines = req.items
+        .map((i) => `[${i.itemId}] (${i.type}) ${i.text}`)
+        .join('\n');
+
+      const prompt = `You are assessing how well a candidate's PROFILE RECORDS support each job requirement.
+
+Requirements (each has a stable id you must echo exactly):
+${reqLines}
+
+Profile records (the ONLY evidence that exists; cite itemId values from this list):
+${itemLines}
+
+Rules — these define correctness, not style:
+- Evidence is only what a record literally states. Never invent, imply or hope for facts.
+- keyword overlap alone does not establish a requirement; the record must actually demonstrate it.
+- Distinguish employment from internships from personal projects: a project NEVER establishes "professional/production experience".
+- A requirement absent from the records is "not_established" — meaning "not found in the profile", NOT "the candidate lacks it". Never claim absence of ability.
+- "partial": some support exists but doesn't establish the full requirement.
+- "needs_review": evidence is ambiguous or plausibly covers it — ask a followUpQuestion.
+- "not_applicable": this kind of requirement can't be assessed against profile records.
+- Give "confidence" as your confidence in the ASSESSMENT itself (data quality), not in the candidate.
+- For supported/partial/needs_review list every relevant evidenceRef {itemId, sourceType} — multiple per requirement is expected.
+- explanation: one or two sentences, plain, no verdicts about the person.
+- followUpQuestion: what one question to the user would settle a needs_review/partial (omit when clear).
+- recommendation: how to surface the real evidence better in the CV (omit when nothing to adjust).
+
+Return a JSON object: {"matches": [{"requirementId": "…", "status": "supported|partial|needs_review|not_established|not_applicable", "confidence": "low|medium|high", "evidenceRefs": [{"itemId": "…", "sourceType": "career_snapshot|education|experience|project|award|skill|language"}], "explanation": "…", "followUpQuestion": "…", "recommendation": "…"}]}
+Every requirement id must appear exactly once.`;
+
+      return withParseRetry(
+        () =>
+          generateJson({
+            model: anthropic(config.extractionModel),
+            schema: MatchModelOutputSchema,
+            prompt,
+          }),
+        (last) => new AnalysisNotParseableError(`Match analysis output invalid after retry: ${last?.message}`)
+      );
     },
   };
 }

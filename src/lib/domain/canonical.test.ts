@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalTextFor, splitProject } from './canonical';
+import { canonicalTextFor, splitProject, stripBullet, normalizeManualText, formatDate, formatDatesInText } from './canonical';
 
 describe('canonicalTextFor', () => {
   it('career_snapshot is the text verbatim', () => {
@@ -8,7 +8,7 @@ describe('canonicalTextFor', () => {
     );
   });
 
-  it('experience: role — company (start–end) + bulleted lines', () => {
+  it('experience: role — company (start–end) + plain bullet lines (renderer owns the marker)', () => {
     const text = canonicalTextFor('experience', {
       company: 'Acme',
       role: 'Senior Engineer',
@@ -16,7 +16,7 @@ describe('canonicalTextFor', () => {
       end: '2025',
       bullets: ['Shipped X', 'Led Y'],
     });
-    expect(text).toBe('Senior Engineer — Acme (2022–2025)\n• Shipped X\n• Led Y');
+    expect(text).toBe('Senior Engineer — Acme (2022–2025)\nShipped X\nLed Y');
   });
 
   it('experience: pasted list markers are stripped so bullets never render "• -"', () => {
@@ -27,7 +27,18 @@ describe('canonicalTextFor', () => {
       end: '',
       bullets: ['- Led X', '• Did Y', '* Ran Z', 'Plain W'],
     });
-    expect(text).toBe('Engineer — Acme (2022–present)\n• Led X\n• Did Y\n• Ran Z\n• Plain W');
+    expect(text).toBe('Engineer — Acme (2022–present)\nLed X\nDid Y\nRan Z\nPlain W');
+  });
+
+  it('experience: YYYY-MM dates normalize to "Mon YYYY"', () => {
+    const text = canonicalTextFor('experience', {
+      company: 'Acme',
+      role: 'Engineer',
+      start: '2022-03',
+      end: '2025-12',
+      bullets: [],
+    });
+    expect(text).toBe('Engineer — Acme (Mar 2022–Dec 2025)');
   });
 
   it('experience with no end date reads "present"; empty bullets render none', () => {
@@ -98,5 +109,43 @@ describe('canonicalTextFor', () => {
   it('tolerates missing/odd payload fields without throwing', () => {
     expect(canonicalTextFor('experience', { role: 'Dev' })).toBe('Dev');
     expect(canonicalTextFor('award', { year: '2024' })).toBe('(2024)');
+  });
+});
+
+describe('stripBullet', () => {
+  it('removes every leading marker variant, including stacked and spaceless ones', () => {
+    expect(stripBullet('- Plain dash')).toBe('Plain dash');
+    expect(stripBullet('• Spaced dot')).toBe('Spaced dot');
+    expect(stripBullet('•Spacedless')).toBe('Spacedless');
+    expect(stripBullet('• - Double')).toBe('Double');
+    expect(stripBullet('- • Reversed double')).toBe('Reversed double');
+    expect(stripBullet('▪ Squared')).toBe('Squared');
+    expect(stripBullet('‣ Triangular')).toBe('Triangular');
+    expect(stripBullet('   * Indented star  ')).toBe('Indented star');
+  });
+
+  it('never eats a minus sign or star that is content, not a marker', () => {
+    expect(stripBullet('-5% latency')).toBe('-5% latency');
+    expect(stripBullet('– — em-dash talk')).toBe('em-dash talk');
+    expect(stripBullet('*bold* start')).toBe('bold* start');
+  });
+
+  it('normalizeManualText strips per line and keeps line structure', () => {
+    expect(normalizeManualText('Role — Co\n• - Led X\n  Did Y')).toBe('Role — Co\nLed X\nDid Y');
+  });
+});
+
+describe('dates', () => {
+  it('formatDate: only exact YYYY-MM is rewritten; never guess', () => {
+    expect(formatDate('2022-03')).toBe('Mar 2022');
+    expect(formatDate('2022-13')).toBe('2022-13');
+    expect(formatDate('2022')).toBe('2022');
+    expect(formatDate('March 2022')).toBe('March 2022');
+    expect(formatDate('')).toBe('');
+  });
+
+  it('formatDatesInText normalizes dates embedded in legacy rows', () => {
+    expect(formatDatesInText('Lead — Acme (2022-03–2025-01)')).toBe('Lead — Acme (Mar 2022–Jan 2025)');
+    expect(formatDatesInText('Cut 2022-14 goals')).toBe('Cut 2022-14 goals');
   });
 });

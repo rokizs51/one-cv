@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ResumeDoc, Suggestion, SuggestionState, GenMode } from '@/lib/domain/types';
+import { ResumeDocSchema } from '@/lib/domain/schemas';
 import type { FitResultSnapshot } from '@/lib/resume/fit-types';
 
 export interface ResumeFields {
@@ -11,6 +12,8 @@ export interface ResumeFields {
   statuses: SuggestionState[];
   userEdits: Record<string, string>;
   fit: FitResultSnapshot;
+  // The match analysis this CV was tailored from, when any.
+  analysisId?: string | null;
 }
 
 export interface GeneratedResume extends ResumeFields {
@@ -44,16 +47,7 @@ export function toSummary(r: GeneratedResume): ResumeSummary {
 export async function saveResume(
   supa: SupabaseClient,
   userId: string,
-  input: {
-    jdId: string;
-    mode: GenMode;
-    pageLimit: 1 | 2;
-    doc: ResumeDoc;
-    suggestions: Suggestion[];
-    statuses: SuggestionState[];
-    userEdits: Record<string, string>;
-    fit: FitResultSnapshot;
-  }
+  input: ResumeFields
 ): Promise<GeneratedResume> {
   const { data, error } = await supa
     .from('generated_resumes')
@@ -67,6 +61,7 @@ export async function saveResume(
       statuses: input.statuses,
       user_edits: input.userEdits,
       fit: input.fit,
+      analysis_id: input.analysisId ?? null,
     })
     .select('*')
     .single();
@@ -79,11 +74,12 @@ export async function saveResume(
     jdId: data.jd_id as string,
     mode: data.mode as GenMode,
     pageLimit: data.page_limit as 1 | 2,
-    doc: data.doc as ResumeDoc,
+    doc: ResumeDocSchema.parse(data.doc) as ResumeDoc,
     suggestions: data.suggestions as Suggestion[],
     statuses: data.statuses as SuggestionState[],
     userEdits: data.user_edits as Record<string, string>,
     fit: data.fit as FitResultSnapshot,
+    analysisId: (data.analysis_id as string | null) ?? null,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
   };
@@ -107,6 +103,7 @@ export async function updateResumeFields(
   if (patch.statuses !== undefined) row.statuses = patch.statuses;
   if (patch.userEdits !== undefined) row.user_edits = patch.userEdits;
   if (patch.fit !== undefined) row.fit = patch.fit;
+  if (patch.analysisId !== undefined) row.analysis_id = patch.analysisId;
 
   const { error } = await supa.from('generated_resumes').update(row).eq('id', resumeId);
   if (error) throw error;
@@ -133,11 +130,12 @@ export async function listResumes(
     jdId: row.jd_id as string,
     mode: row.mode as GenMode,
     pageLimit: row.page_limit as 1 | 2,
-    doc: row.doc as ResumeDoc,
+    doc: ResumeDocSchema.parse(row.doc) as ResumeDoc,
     suggestions: row.suggestions as Suggestion[],
     statuses: row.statuses as SuggestionState[],
     userEdits: row.user_edits as Record<string, string>,
     fit: row.fit as FitResultSnapshot,
+    analysisId: (row.analysis_id as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   }));
@@ -180,11 +178,12 @@ export async function getResume(
     jdId: data.jd_id as string,
     mode: data.mode as GenMode,
     pageLimit: data.page_limit as 1 | 2,
-    doc: data.doc as ResumeDoc,
+    doc: ResumeDocSchema.parse(data.doc) as ResumeDoc,
     suggestions: data.suggestions as Suggestion[],
     statuses: data.statuses as SuggestionState[],
     userEdits: data.user_edits as Record<string, string>,
     fit: data.fit as FitResultSnapshot,
+    analysisId: (data.analysis_id as string | null) ?? null,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
   };

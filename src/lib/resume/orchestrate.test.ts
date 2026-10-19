@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { generateResume, QuotaExceededError, GenerationUnavailableError } from './orchestrate';
+import {
+  generateResume,
+  QuotaExceededError,
+  GenerationUnavailableError,
+  NotFoundError,
+  StaleAnalysisError,
+  AnalysisIncompleteError,
+} from './orchestrate';
 import type { OrchestrateDeps, GenerateInput } from './orchestrate';
 import { makeFakeGenAI } from '@/lib/ai/fake';
 import { createSupaStub } from '@/test-helpers/supa-stub';
+import { computeProfileFingerprint } from '@/lib/match/analyze';
 import type { ProfileItem, JdExtraction } from '@/lib/domain/types';
 import type { PersonalInfo } from '@/lib/db/profiles';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -736,5 +744,170 @@ describe('orchestrate.ts', () => {
       // pinned is never dropped
       expect(result.fit.chosen).toContain('pin-1');
     });
+  });
+});
+
+describe('skill cleanup and grouping (Task §4)', () => {
+  function skill(id: string, text: string, payload: Record<string, unknown> = {}) {
+    return makeItem({ id, type: 'skill', canonicalText: text, payload });
+  }
+  const snapshot = () =>
+    makeItem({
+      id: 'snap',
+      type: 'career_snapshot',
+      canonicalText: 'Backend engineer',
+      payload: { text: 'Backend engineer' },
+    });
+
+  it('enhance: dedupes exact-duplicate and empty skills, attaches AI categories', async () => {
+    const ai = makeFakeGenAI({
+      groupSkills: async (names) => [{ category: 'Languages', skills: names }],
+    });
+    const items = [
+      snapshot(),
+      skill('s1', 'Go', { name: 'Go' }),
+      skill('s2', 'Go', { name: 'Go' }), // exact duplicate
+      skill('s3', '   '), // empty
+      skill('s4', 'Rust', { name: 'Rust' }),
+    ];
+    const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+    const result = await generateResume(makeDeps({ supa, ai }), { jdId: 'jd-1', mode: 'enhance', pageLimit: 1 });
+
+    const skills = result.doc.sections.find((s) => s.id === 'skills')!;
+    expect(skills.items.map((i) => i.text)).toEqual(['Go', 'Rust']);
+    expect(skills.items.map((i) => i.category)).toEqual(['Languages', 'Languages']);
+    expect(ai.calls.groupSkills).toEqual([['Go', 'Rust']]);
+  });
+
+  it('enhance: a payload category wins and only uncategorized names reach the AI', async () => {
+    const ai = makeFakeGenAI({
+      groupSkills: async (names) => [{ category: 'Databases', skills: names }],
+    });
+    const items = [
+      snapshot(),
+      skill('s1', 'Postgres', { name: 'Postgres', category: 'Databases' }),
+      skill('s2', 'React', { name: 'React' }),
+    ];
+    const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+    const result = await generateResume(makeDeps({ supa, ai }), { jdId: 'jd-1', mode: 'enhance', pageLimit: 1 });
+
+    const skills = result.doc.sections.find((s) => s.id === 'skills')!;
+    expect(ai.calls.groupSkills).toEqual([['React']]);
+    expect(skills.items.find((i) => i.text === 'Postgres')!.category).toBe('Databases');
+    expect(skills.items.find((i) => i.text === 'React')!.category).toBe('Databases');
+  });
+
+  it('as_is: grouping is never invoked (zero-LLM guarantee) and skills stay flat', async () => {
+    const ai = makeFakeGenAI();
+    const items = [snapshot(), skill('s1', 'Go', { name: 'Go' }), skill('s2', 'Go', { name: 'Go' })];
+    const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+    const result = await generateResume(makeDeps({ supa, ai }), { jdId: 'jd-1', mode: 'as_is', pageLimit: 1 });
+
+    expect(ai.calls.groupSkills.length).toBe(0);
+    const skills = result.doc.sections.find((s) => s.id === 'skills')!;
+    expect(skills.items.map((i) => i.text)).toEqual(['Go']); // dedup still applies — cleanup is not AI
+    expect(skills.items[0].category).toBeUndefined();
+  });
+
+  it('a composed headline carrying an unsupported number becomes an evidence ask', async () => {
+    const ai = makeFakeGenAI({ composeSummary: async () => 'Led 300 engineers' });
+    const items = [
+      snapshot(),
+      makeItem({ id: 'e1', type: 'experience', canonicalText: 'Built APIs' }),
+    ];
+    const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+    const result = await generateResume(makeDeps({ supa, ai }), { jdId: 'jd-1', mode: 'enhance', pageLimit: 1 });
+
+    const summary = result.statuses.find((s) => s.suggestion.kind === 'summary')!;
+    expect(summary.suggestion.newText).toBe('Backend engineer');
+    expect(summary.suggestion.basis).toMatch(/number none of your inputs contain/);
+  });
+});
+
+describe('generate bound to a match analysis', () => {
+  function analysisRow(items: ProfileItem[], over: Record<string, unknown> = {}) {
+    return {
+      id: 'jd-1' in over ? 'a-1' : 'a-1',
+      owner: 'user-1',
+      jd_id: 'jd-1',
+      status: 'completed',
+      result: {
+        requirements: [],
+        matches: [],
+        summary: {
+          totals: { requirements: 0, supported: 0, partial: 0, needs_review: 0, not_established: 0, not_applicable: 0 },
+          byImportance: { mandatory: {}, preferred: {} },
+          strongest: [], gaps: [], questions: [], adjustments: [],
+        },
+      },
+      error: null,
+      profile_fingerprint: computeProfileFingerprint(items),
+      created_at: '2026-10-15T00:00:00Z',
+      updated_at: '2026-10-15T00:00:00Z',
+      ...over,
+    };
+  }
+
+  function supaWith(items: ProfileItem[], analysisData: unknown) {
+    return createSupaStub({
+      from: {
+        profiles: {
+          data: { id: 'profile-1', user_id: 'user-1', personal: { fullName: 'T', email: 't@example.com', phone: null, location: null, links: [] } },
+          error: null,
+        },
+        profile_items: {
+          data: items.map((i) => ({
+            id: i.id, profile_id: i.profileId, type: i.type, payload: i.payload,
+            canonical_text: i.canonicalText, source: i.source, provenance: i.provenance,
+            pinned: i.pinned, position: i.position,
+          })),
+          error: null,
+        },
+        job_descriptions: {
+          data: { id: 'jd-1', owner: 'user-1', raw: 'raw', extraction: defaultExtraction, created_at: '2026-10-15T00:00:00Z' },
+          error: null,
+        },
+        generation_quota: { data: { generations: 0, llm_cost_micros: 0 }, error: null },
+        match_analyses: { data: analysisData, error: null },
+      },
+      rpc: { month_llm_cost: { data: 0, error: null } },
+    });
+  }
+
+  it('refuses to generate from a STALE analysis — profile edits win over snapshots', async () => {
+    const items = [makeItem({ id: 'e1', type: 'experience', canonicalText: 'Built React apps with TypeScript' })];
+    const stale = analysisRow(items, { profile_fingerprint: 'old-fingerprint' });
+    const ai = makeFakeGenAI();
+    const deps = makeDeps({ supa: supaWith(items, stale), ai });
+
+    await expect(
+      generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1, analysisId: 'a-1' })
+    ).rejects.toThrow(StaleAnalysisError);
+    expect(ai.calls.enhance.length).toBe(0);
+  });
+
+  it('refuses an analysis that never completed', async () => {
+    const items = [makeItem({ id: 'e1', type: 'experience', canonicalText: 'Built React apps with TypeScript' })];
+    const deps = makeDeps({ supa: supaWith(items, analysisRow(items, { status: 'running', result: null })) });
+
+    await expect(
+      generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1, analysisId: 'a-1' })
+    ).rejects.toThrow(AnalysisIncompleteError);
+  });
+
+  it('a fresh completed analysis links onto the stored resume', async () => {
+    const items = [makeItem({ id: 'e1', type: 'experience', canonicalText: 'Built React apps with TypeScript' })];
+    const deps = makeDeps({ supa: supaWith(items, analysisRow(items)) });
+
+    const resume = await generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1, analysisId: 'a-1' });
+    expect(resume.analysisId).toBe('a-1');
+  });
+
+  it('an analysis id for another JD or absent (RLS null) is a 404 signal', async () => {
+    const items = [makeItem({ id: 'e1', type: 'experience', canonicalText: 'Built React apps' })];
+    const deps = makeDeps({ supa: supaWith(items, { ...analysisRow(items), jd_id: 'other-jd' }) });
+    await expect(
+      generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1, analysisId: 'a-1' })
+    ).rejects.toThrow(NotFoundError);
   });
 });

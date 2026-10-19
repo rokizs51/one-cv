@@ -1,7 +1,7 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import type { ResumeDoc, SectionId } from '@/lib/domain/types';
-import { splitProject } from '@/lib/domain/canonical';
+import { Document, Page, Text, View, Link, StyleSheet } from '@react-pdf/renderer';
+import type { ResumeDoc, ResumeDocItem, SectionId } from '@/lib/domain/types';
+import { splitProject, stripBullet, formatDatesInText } from '@/lib/domain/canonical';
 
 /**
  * The printed CV, structured to the ATS reference in
@@ -43,6 +43,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: 1,
   },
+  // clickable but print-plain: black, no underline
+  contactLink: {
+    fontSize: 10,
+    color: '#000000',
+    textDecoration: 'none',
+  },
   headerRule: {
     marginTop: 6,
     marginBottom: 2,
@@ -58,6 +64,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5,
     marginBottom: 1,
+    // keep ≥2 lines of the section's content on this page, else the title
+    // moves to the next one — no orphaned headings at page bottom
+    minPresenceAhead: 24,
   },
   sectionRule: {
     borderBottomWidth: 0.5,
@@ -71,27 +80,38 @@ const styles = StyleSheet.create({
   entryHead: {
     fontWeight: 'bold',
   },
-  // canonicalText bullets arrive already prefixed with "• " — indent, don't re-add
-  entryBullet: {
-    paddingLeft: 12,
+  // The renderer owns the marker: storage is plain text, and any marker a
+  // legacy row still carries is stripped before this is drawn. The marker is
+  // a fixed-width column so wrapped lines align past it (hanging indent).
+  bulletRow: {
+    flexDirection: 'row',
+  },
+  bulletMarker: {
+    width: 12,
+  },
+  bulletText: {
+    flex: 1,
   },
   body: {
     marginBottom: 2,
   },
 });
 
-/** Canonical experience text is "Role — Company (dates)\n• b1\n• b2". */
+/** Canonical experience text is "Role — Company (dates)\nbullet\nbullet";
+ * markers (if any legacy row still has them) are stripped and redrawn here. */
 function Entry({ text }: { text: string }) {
   const lines = text.split('\n');
-  const head = lines[0];
-  const rest = lines.slice(1).filter((l) => l.trim() !== '');
+  const head = formatDatesInText(lines[0]);
+  const rest = lines.slice(1).map(stripBullet).filter((l) => l !== '');
   return (
-    <View style={styles.entry}>
+    // wrap={false}: an entry stays whole across page breaks where practical
+    <View style={styles.entry} wrap={false}>
       <Text style={rest.length > 0 ? styles.entryHead : undefined}>{head}</Text>
       {rest.map((line, i) => (
-        <Text key={i} style={styles.entryBullet}>
-          {line}
-        </Text>
+        <View key={i} style={styles.bulletRow}>
+          <Text style={styles.bulletMarker}>•</Text>
+          <Text style={styles.bulletText}>{line}</Text>
+        </View>
       ))}
     </View>
   );
@@ -111,12 +131,36 @@ function ProjectEntry({ text }: { text: string }) {
   );
 }
 
+/** Group categorized skill items for one labeled line per category
+ * (first-appearance order); uncategorized items trail as one unlabeled group. */
+function groupSkillsByCategory(
+  items: ResumeDocItem[]
+): { category: string | null; items: ResumeDocItem[] }[] {
+  const order: (string | null)[] = [];
+  const byCat = new Map<string | null, ResumeDocItem[]>();
+  for (const item of items) {
+    const cat = item.category ?? null;
+    if (!byCat.has(cat)) {
+      byCat.set(cat, []);
+      order.push(cat);
+    }
+    byCat.get(cat)!.push(item);
+  }
+  // uncategorized last, whatever its position in the list
+  order.sort((a, b) => (a === null ? 1 : b === null ? -1 : 0));
+  return order.map((cat) => ({ category: cat, items: byCat.get(cat)! }));
+}
+
 interface ResumeDocumentProps {
   doc: ResumeDoc;
   pageLimit: 1 | 2;
 }
 
-export function ResumeDocument({ doc, pageLimit }: ResumeDocumentProps) {
+// pageLimit is intentionally not consumed here: pagination is the honest
+// auto-flow (breakInside/minPresenceAhead), and the ACTUAL rendered count is
+// measured post-render in render.ts (pdfPageCount) — shrinking or truncating
+// to hit the limit is a hard anti-goal.
+export function ResumeDocument({ doc }: ResumeDocumentProps) {
   const { header, summary, sections } = doc;
 
   const contact = [header.email, header.phone, header.location].filter(Boolean).join('  •  ');
@@ -129,7 +173,21 @@ export function ResumeDocument({ doc, pageLimit }: ResumeDocumentProps) {
         <View>
           <Text style={styles.name}>{header.fullName}</Text>
           {contact !== '' && <Text style={styles.contactLine}>{contact}</Text>}
-          {links && <Text style={styles.contactLine}>{links}</Text>}
+          {links && (
+            <View style={styles.bulletRow}>
+              {header.links.map((l, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <Text style={styles.contactLine}>  •  </Text>}
+                  <Link
+                    src={/^https?:\/\//.test(l) ? l : `https://${l}`}
+                    style={styles.contactLink}
+                  >
+                    {l.replace(/^https?:\/\//, '')}
+                  </Link>
+                </React.Fragment>
+              ))}
+            </View>
+          )}
           <View style={styles.headerRule} />
         </View>
 
@@ -148,7 +206,18 @@ export function ResumeDocument({ doc, pageLimit }: ResumeDocumentProps) {
             <Text style={styles.sectionTitle}>{SECTION_LABEL[section.id]}</Text>
             <View style={styles.sectionRule} />
             {JOINED_SECTIONS.has(section.id) ? (
-              // Short names join into one compact block; once an entry carries
+              // Categorized skills: one "Category: a, b" line per group, in
+              // first-appearance order; uncategorized entries trail unlabeled.
+              section.id === 'skills' && section.items.some((i) => i.category) ? (
+                groupSkillsByCategory(section.items).map((g) => (
+                  <Text key={g.category ?? '_'} style={styles.body}>
+                    {g.category ? (
+                      <Text style={styles.entryHead}>{`${g.category}: `}</Text>
+                    ) : null}
+                    {g.items.map((i) => i.text).join(', ')}
+                  </Text>
+                ))
+              ) : // Short names join into one compact block; once an entry carries
               // a description, comma-joining turns it into an unreadable blob
               // — give every entry its own line instead.
               section.items.some((i) => i.text.length > 48) ? (

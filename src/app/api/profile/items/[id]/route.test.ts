@@ -125,7 +125,7 @@ describe('PATCH /api/profile/items/:id', () => {
 
     expect(res.status).toBe(200);
     const patch = mockUpdateItem.mock.calls[0][2];
-    expect(patch.canonicalText).toBe('Lead — Acme (2022–2025)\n• Ran Y');
+    expect(patch.canonicalText).toBe('Lead — Acme (2022–2025)\nRan Y');
   });
 
   it('payload edit on an Enhanced item rebases the provenance chain', async () => {
@@ -146,7 +146,7 @@ describe('PATCH /api/profile/items/:id', () => {
 
     expect(res.status).toBe(200);
     const patch = mockUpdateItem.mock.calls[0][2];
-    expect(patch.canonicalText).toBe('Lead — Acme (2022–2025)\n• Ran Y');
+    expect(patch.canonicalText).toBe('Lead — Acme (2022–2025)\nRan Y');
     expect(patch.provenance).toEqual([]);
   });
 

@@ -419,3 +419,40 @@ describe('isEarlyCareer', () => {
     expect(isEarlyCareer(items, new Date('2026-06-01T00:00:00Z'))).toBe(true);
   });
 });
+
+describe('orderSections experience ordering', () => {
+  const jd: JdExtraction = {
+    requiredSkills: [], preferredSkills: [], keywords: [],
+    seniority: 'mid', domain: 'engineering', tools: [], responsibilities: [],
+  };
+
+  function scoredExperience(id: string, payload: Record<string, unknown>) {
+    return keywordScore(makeItem({ id, type: 'experience', payload }), jd);
+  }
+
+  it('sorts experience reverse-chronologically, ongoing roles first', () => {
+    const sections = orderSections(
+      [
+        scoredExperience('old', { end: '2019' }),
+        scoredExperience('ongoing', { end: '' }),
+        scoredExperience('mid', { end: '2023-06' }),
+        scoredExperience('weird', { end: 'sometime' }),
+      ],
+      { earlyCareer: false }
+    );
+    const exp = sections.find((s) => s.id === 'experience')!;
+    expect(exp.items.map((i) => i.sourceItemId)).toEqual(['ongoing', 'mid', 'old', 'weird']);
+  });
+
+  it('non-experience sections keep the input (position) order', () => {
+    const sections = orderSections(
+      [
+        keywordScore(makeItem({ id: 'p1', type: 'project', payload: {} }), jd),
+        keywordScore(makeItem({ id: 'p2', type: 'project', payload: {} }), jd),
+      ],
+      { earlyCareer: false }
+    );
+    const proj = sections.find((s) => s.id === 'projects')!;
+    expect(proj.items.map((i) => i.sourceItemId)).toEqual(['p1', 'p2']);
+  });
+});

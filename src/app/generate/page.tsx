@@ -7,11 +7,17 @@ import { getSessionUser } from '@/lib/auth/session';
 // redirect before anything renders (cacheComponents sanctioned opt-out).
 export const instant = false;
 
-export default async function GeneratePage() {
+export default async function GeneratePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ jdId?: string; analysisId?: string }>;
+}) {
   // Page-level guard (defense-in-depth alongside the proxy): this screen and
   // its APIs are private by default.
   const user = await getSessionUser();
   if (!user) redirect('/login');
+
+  const { jdId, analysisId } = await searchParams;
 
   return (
     <AppShell email={user.email ?? undefined}>
@@ -23,7 +29,7 @@ export default async function GeneratePage() {
             you&apos;ve recorded in your profile.
           </p>
           <div className="mt-8">
-            <GenerateWizard />
+            <GenerateWizard initialJdId={jdId ?? null} initialAnalysisId={analysisId ?? null} />
           </div>
         </div>
       </main>

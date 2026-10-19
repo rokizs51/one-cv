@@ -55,7 +55,7 @@ describe('GET /api/resumes', () => {
               jd_id: 'jd-1',
               mode: 'as_is',
               page_limit: 1,
-              doc: {},
+              doc: { header: { fullName: 'T', email: 't.com', phone: null, location: null, links: [] }, summary: null, sections: [] },
               suggestions: [],
               statuses: [],
               user_edits: {},

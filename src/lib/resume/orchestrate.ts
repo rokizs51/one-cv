@@ -2,11 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { GenAI } from '@/lib/ai/types';
 import type {
   GenMode,
-  ProfileItem,
   ResumeDoc,
   ResumeHeader,
   ResumeSection,
-  ResumeDocItem,
   Suggestion,
   SuggestionState,
 } from '@/lib/domain/types';
@@ -20,6 +18,10 @@ import { currentUsage, recordGeneration, GENERATIONS_CAP, globalLlmCost, monthKe
 import { isEarlyCareer, orderSections } from '@/lib/resume/scoring';
 import { buildFit, snapshotOf } from '@/lib/resume/fit';
 import { estimateCostMicros } from '@/lib/ai/env';
+import { hasUnsupportedNumbers } from '@/lib/ai/client';
+import { normalizeManualText } from '@/lib/domain/canonical';
+import { getAnalysis, type MatchAnalysis } from '@/lib/db/analyses';
+import { computeProfileFingerprint, enrichmentFromAnalysis } from '@/lib/match/analyze';
 
 export interface OrchestrateDeps {
   supa: SupabaseClient;
@@ -55,6 +57,23 @@ export interface GenerateInput {
   jdId: string;
   mode: GenMode;
   pageLimit: 1 | 2;
+  // Optional: tailor against a persisted match analysis (its requirements
+  // enrich scoring, and the resume records the link).
+  analysisId?: string | null;
+}
+
+export class StaleAnalysisError extends Error {
+  constructor() {
+    super('The profile changed since this analysis ran — rerun it before generating');
+    this.name = 'StaleAnalysisError';
+  }
+}
+
+export class AnalysisIncompleteError extends Error {
+  constructor() {
+    super('The selected analysis is not completed');
+    this.name = 'AnalysisIncompleteError';
+  }
 }
 
 export class QuotaExceededError extends Error {
@@ -83,7 +102,7 @@ export async function generateResume(
   input: GenerateInput
 ): Promise<GeneratedResume> {
   const { supa, ai, now, user } = deps;
-  const { jdId, mode, pageLimit } = input;
+  const { jdId, mode, pageLimit, analysisId } = input;
 
   // 1. Check quota BEFORE any LLM call
   const usage = await currentUsage(supa, user.id, now);
@@ -113,10 +132,22 @@ export async function generateResume(
   // career_snapshot excluded from scoring, and the page-space of the summary
   // text that ACTUALLY renders (pre-disposition: the snapshot verbatim in
   // both modes) reserved from the budget.
+  // Optional analysis binding: must be the user's, completed, and fresh for
+  // the profile as it reads NOW — a stale snapshot may not silently steer a
+  // generation (spec §7.5 rerun-before-generate).
+  let analysis: MatchAnalysis | null = null;
+  if (analysisId) {
+    analysis = await getAnalysis(supa, analysisId);
+    if (!analysis || analysis.jdId !== jdId) throw new NotFoundError('not_found');
+    if (analysis.status !== 'completed' || !analysis.result) throw new AnalysisIncompleteError();
+    if (computeProfileFingerprint(items) !== analysis.profileFingerprint) throw new StaleAnalysisError();
+  }
+
   const snapshotItem = items.find((item) => item.type === 'career_snapshot') ?? null;
   const { scored, fit: fitResult } = buildFit(
     items,
-    jd.extraction,
+    // Tailoring follows the analyzed requirements when one is selected.
+    analysis ? enrichmentFromAnalysis(jd.extraction, analysis.result!) : jd.extraction,
     pageLimit,
     snapshotItem?.canonicalText ?? null
   );
@@ -167,13 +198,27 @@ export async function generateResume(
         snapshot: snapshotText,
         facts,
       });
-      allSuggestions.push({
-        id: 'summary-composed',
-        targetItemId: snapshotItem.id,
-        kind: 'summary',
-        newText: composed,
-        basis: 'Headline composed from your career summary and this job — the summary itself is untouched.',
-      });
+      // The same no-invented-metrics rule as bullet rewrites, applied to the
+      // composed headline: a figure absent from every input cannot ship.
+      const evidence = `${snapshotText} ${facts.join(' ')}`;
+      const clean = normalizeManualText(composed);
+      allSuggestions.push(
+        hasUnsupportedNumbers(clean, evidence)
+          ? {
+              id: 'summary-composed',
+              targetItemId: snapshotItem.id,
+              kind: 'summary',
+              newText: snapshotText,
+              basis: 'Composition added a number none of your inputs contain — kept your own summary. Add the figure to your profile if it is real, or edit to supply wording you stand behind.',
+            }
+          : {
+              id: 'summary-composed',
+              targetItemId: snapshotItem.id,
+              kind: 'summary',
+              newText: clean,
+              basis: 'Headline composed from your career summary and this job — the summary itself is untouched.',
+            }
+      );
     }
 
     // Call ai.enhance for chosen bullets
@@ -202,16 +247,63 @@ export async function generateResume(
 
   // Build sections with only chosen items and override basis to source profile item id
   const chosenItemIds = new Set(fitResult.chosen.map((s) => s.item.id));
+
+  // Skill grouping: payload category (user-authored) always wins; enhance
+  // mode fills the gaps with one cheap AI pass. as_is stays zero-LLM-call, so
+  // no grouping there. Failures degrade to the flat block — this is
+  // presentation, never content.
+  const categoryByItemId = new Map<string, string>();
+  const chosenSkills = fitResult.chosen.filter((s) => s.item.type === 'skill');
+  const skillName = (s: (typeof chosenSkills)[number]): string =>
+    typeof s.item.payload.name === 'string' && s.item.payload.name.trim() !== ''
+      ? s.item.payload.name.trim()
+      : s.item.canonicalText.trim();
+  const needsAi: typeof chosenSkills = [];
+  for (const s of chosenSkills) {
+    const c = s.item.payload.category;
+    if (typeof c === 'string' && c.trim() !== '') categoryByItemId.set(s.item.id, c.trim());
+    else needsAi.push(s);
+  }
+  if (mode === 'enhance' && needsAi.length > 0) {
+    const names = [...new Set(needsAi.map(skillName).filter((n) => n !== ''))];
+    try {
+      const groups = await ai.groupSkills(names);
+      const byName = new Map<string, string>();
+      for (const g of groups) for (const n of g.skills) byName.set(n, g.category);
+      for (const s of needsAi) {
+        const cat = byName.get(skillName(s));
+        if (cat) categoryByItemId.set(s.item.id, cat);
+      }
+    } catch {
+      // grouping unavailable — flat skills block is the fallback
+    }
+  }
+
+  const seenSkillText = new Set<string>();
   const docSections: ResumeSection[] = sections
-    .map((section) => ({
-      ...section,
-      items: section.items
+    .map((section) => {
+      let items = section.items
         .filter((item) => chosenItemIds.has(item.sourceItemId))
         .map((item) => ({
           ...item,
           basis: item.sourceItemId, // Override basis to source profile item id
-        })),
-    }))
+        }));
+      if (section.id === 'skills') {
+        // Drop empty and exact-duplicate entries; attach presentation categories.
+        items = items
+          .filter((item) => {
+            const key = item.text.trim().toLowerCase();
+            if (key === '' || seenSkillText.has(key)) return false;
+            seenSkillText.add(key);
+            return true;
+          })
+          .map((item) => {
+            const cat = categoryByItemId.get(item.sourceItemId);
+            return cat ? { ...item, category: cat } : item;
+          });
+      }
+      return { ...section, items };
+    })
     .filter((section) => section.items.length > 0);
 
   const doc: ResumeDoc = {
@@ -240,6 +332,7 @@ export async function generateResume(
     statuses,
     userEdits: {},
     fit,
+    analysisId: analysisId ?? null,
   });
 
   return resume;

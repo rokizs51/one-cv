@@ -1,5 +1,6 @@
-import type { GenAI, EnhanceRequest, SummaryRequest } from './types';
+import type { GenAI, EnhanceRequest, SummaryRequest, SkillGroup } from './types';
 import type { JdExtraction, Suggestion } from '@/lib/domain/types';
+import type { MatchAnalysisRequest, MatchAnalysisModelOutput } from '@/lib/match/match-types';
 
 /**
  * Call recorder for fake GenAI - tracks all invocations for test assertions.
@@ -8,6 +9,8 @@ export interface FakeGenAICalls {
   extractJd: string[];
   enhance: EnhanceRequest[];
   composeSummary: SummaryRequest[];
+  groupSkills: string[][];
+  analyzeMatch: MatchAnalysisRequest[];
 }
 
 /**
@@ -39,6 +42,8 @@ export function makeFakeGenAI(overrides?: Partial<GenAI>): FakeGenAI {
     extractJd: [],
     enhance: [],
     composeSummary: [],
+    groupSkills: [],
+    analyzeMatch: [],
   };
 
   return {
@@ -67,6 +72,33 @@ export function makeFakeGenAI(overrides?: Partial<GenAI>): FakeGenAI {
         return overrides.composeSummary(req);
       }
       return 'Test summary';
+    },
+
+    async groupSkills(names: string[]): Promise<SkillGroup[]> {
+      calls.groupSkills.push(names);
+      if (overrides?.groupSkills) {
+        return overrides.groupSkills(names);
+      }
+      // Default: no grouping — consumers treat it as a flat skills block.
+      return [];
+    },
+
+    async analyzeMatch(req: MatchAnalysisRequest): Promise<MatchAnalysisModelOutput> {
+      calls.analyzeMatch.push(req);
+      if (overrides?.analyzeMatch) {
+        return overrides.analyzeMatch(req);
+      }
+      // Default: every requirement marked not_established with no evidence —
+      // the most conservative honest answer; tests override per scenario.
+      return {
+        matches: req.requirements.map((r) => ({
+          requirementId: r.id,
+          status: 'not_established' as const,
+          confidence: 'high' as const,
+          evidenceRefs: [],
+          explanation: 'No profile record addresses this requirement (fake analysis).',
+        })),
+      };
     },
   };
 }

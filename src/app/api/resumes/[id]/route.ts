@@ -6,6 +6,7 @@ import { getResume, updateResumeFields, deleteResume } from '@/lib/db/resumes';
 import { getJd } from '@/lib/db/jds';
 import { getItem, acceptText } from '@/lib/db/items';
 import { preserveHeaderLines } from '@/lib/ai/client';
+import { normalizeManualText } from '@/lib/domain/canonical';
 import { refitFromDoc } from '@/lib/resume/refit';
 import type { JdExtraction, ResumeDoc, SuggestionState } from '@/lib/domain/types';
 
@@ -278,8 +279,10 @@ export async function PATCH(
             );
           }
           entry.status = status;
-          entry.finalText = text;
-          applied = text;
+          // One marker rule at this boundary too: accepted/edited wording is
+          // stored bullet-marker-free and flows back into the profile item.
+          entry.finalText = normalizeManualText(text);
+          applied = entry.finalText;
         }
 
         if (applied !== null) {

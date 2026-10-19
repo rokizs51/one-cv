@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Lightning, Sparkle } from '@phosphor-icons/react';
+import { Check, Lightning, MagnifyingGlass, Sparkle } from '@phosphor-icons/react';
 import { JdChips } from '@/components/jd-chips';
 import type { GenMode, JdExtraction } from '@/lib/domain/types';
 import Card, { SectionHeading } from '@/components/ui/card';
@@ -59,7 +59,6 @@ function StepPills({ step }: { step: Step }) {
               {done ? <Check aria-hidden size={12} weight="bold" /> : <span className="tabular-nums">{s.n}</span>}
               {s.label}
             </span>
-            {i === 0 && <span aria-hidden className="h-px w-6 bg-line-2" />}
           </li>
         );
       })}
@@ -67,7 +66,14 @@ function StepPills({ step }: { step: Step }) {
   );
 }
 
-export default function GenerateWizard() {
+interface GenerateWizardProps {
+  // Deep links (from the analysis view's "Generate tailored CV"): a JD
+  // already extracted server-side, and the match analysis to tailor against.
+  initialJdId?: string | null;
+  initialAnalysisId?: string | null;
+}
+
+export default function GenerateWizard({ initialJdId, initialAnalysisId }: GenerateWizardProps = {}) {
   const router = useRouter();
 
   const [step, setStep] = useState<Step>('paste');
@@ -78,6 +84,30 @@ export default function GenerateWizard() {
   const [pageLimit, setPageLimit] = useState<1 | 2>(1);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [analysisId, setAnalysisId] = useState<string | null>(initialAnalysisId ?? null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  // Deep-linked JD: load its stored extraction and land on step 2.
+  useEffect(() => {
+    if (!initialJdId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/jds/${initialJdId}`);
+        const data = await res.json();
+        if (cancelled || !res.ok) return;
+        setJdId(data.jd.id);
+        setRaw(data.jd.raw ?? '');
+        setExtraction(data.jd.extraction);
+        setStep('configure');
+      } catch {
+        // fall back to the plain paste flow
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialJdId]);
 
   // Recover the pasted JD after a login redirect (Review Focus 4).
   useEffect(() => {
@@ -134,7 +164,7 @@ export default function GenerateWizard() {
       const res = await fetch('/api/resumes/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jdId, mode, pageLimit }),
+        body: JSON.stringify({ jdId, mode, pageLimit, analysisId }),
       });
 
       if (res.status === 401) {
@@ -153,6 +183,35 @@ export default function GenerateWizard() {
       setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!jdId) return;
+    setError('');
+    setAnalyzing(true);
+    try {
+      const res = await fetch('/api/analyses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jdId }),
+      });
+      if (res.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      // Even a 502 carries the failed analysis row — navigate so the user
+      // sees why and gets the Rerun action, rather than a bare error line.
+      const data = await res.json();
+      if (data.analysis?.id) {
+        router.push(`/analysis/${data.analysis.id}`);
+        return;
+      }
+      setError(friendlyError(data.error?.code, data.error?.message));
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.');
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -224,6 +283,27 @@ export default function GenerateWizard() {
           </Card>
         )}
 
+        {analysisId && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-wash-green px-4 py-3 text-sm text-tone-green"
+            role="status"
+          >
+            <span>Tailoring to your match analysis — the CV will follow its requirements.</span>
+            <span className="flex items-center gap-2">
+              <a href={`/analysis/${analysisId}`} className={buttonCls('ghost', 'sm', 'border-none bg-transparent')}>
+                View
+              </a>
+              <button
+                type="button"
+                onClick={() => setAnalysisId(null)}
+                className={buttonCls('ghost', 'sm', 'border-none bg-transparent')}
+              >
+                Don&apos;t use it
+              </button>
+            </span>
+          </div>
+        )}
+
         <Card className="p-6">
           <SectionHeading className="mb-3">How should we build it?</SectionHeading>
           <fieldset className="space-y-3">
@@ -234,7 +314,7 @@ export default function GenerateWizard() {
                 <label
                   key={m.value}
                   className={
-                    'flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-150 ' +
+                    'flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-[background-color,border-color,transform] duration-150 ' +
                     (selected
                       ? 'border-primary bg-wash-blue'
                       : 'border-line hover:border-line-2 hover:bg-surface-2/60')
@@ -286,6 +366,10 @@ export default function GenerateWizard() {
           <Button onClick={handleGenerate} disabled={busy} size="lg">
             <Sparkle aria-hidden size={18} weight="bold" />
             {busy ? 'Generating…' : 'Generate my CV'}
+          </Button>
+          <Button variant="secondary" onClick={handleAnalyze} disabled={analyzing || busy || !jdId} size="lg">
+            <MagnifyingGlass aria-hidden size={18} weight="bold" />
+            {analyzing ? 'Analyzing the match…' : 'Analyze the match first'}
           </Button>
           <button
             type="button"

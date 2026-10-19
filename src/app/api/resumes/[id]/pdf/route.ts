@@ -61,7 +61,7 @@ export async function GET(
       );
     }
 
-    const bytes = await renderResumePdf(resume.doc, resume.pageLimit);
+    const { bytes, pages } = await renderResumePdf(resume.doc, resume.pageLimit);
 
     return new NextResponse(bytes as unknown as BodyInit, {
       status: 200,
@@ -69,6 +69,10 @@ export async function GET(
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="resume-${id.slice(0, 8)}.pdf"`,
         'Cache-Control': 'no-store',
+        // Honest pagination signal for the UI: actual rendered pages vs the
+        // user's limit. Content is never shrunk or truncated to fit.
+        'X-Resume-Pages': String(pages),
+        'X-Resume-Page-Limit': String(resume.pageLimit),
       },
     });
   } catch (error) {

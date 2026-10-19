@@ -1,5 +1,58 @@
 import type { ItemType } from './types';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Render-time date normalization: "2022-03" → "Mar 2022". Anything that isn't
+ * exactly YYYY-MM passes through — never guess a format the user didn't give.
+ */
+export function formatDate(s: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(s.trim());
+  if (!m) return s.trim();
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return s.trim();
+  return `${MONTHS[month - 1]} ${m[1]}`;
+}
+
+/** Rows stored before formatDate normalize their dates keep "2022-03" inline;
+ * display them the same way as fresh canonical text. */
+export function formatDatesInText(s: string): string {
+  return s.replace(/\b(\d{4})-(\d{2})\b/g, (all, y: string, m: string) => {
+    const n = Number(m);
+    return n >= 1 && n <= 12 ? `${MONTHS[n - 1]} ${y}` : all;
+  });
+}
+
+// A hyphen/dash counts as a list marker only with trailing whitespace after it
+// ("-5%" is a number, "- Item" is a bullet). The dot/star family counts either
+// way ("•Title" is still a bullet).
+const MARKER_DASH = /^\s*[-–—]\s+/;
+const MARKER_DOT = /^\s*[•▪·‣*]\s*/;
+
+/** Normalize a whole multi-line manual text: one marker rule for every
+ * boundary that accepts user- or model-typed canonical text. */
+export function normalizeManualText(text: string): string {
+  return text
+    .split('\n')
+    .map(stripBullet)
+    .join('\n')
+    .trim();
+}
+
+/**
+ * Remove every leading list marker from a bullet line, repeatably, so "• - x",
+ * "•• x" and "•x" all land on the same plain text. The renderer owns the one
+ * marker it draws; storage keeps none.
+ */
+export function stripBullet(line: string): string {
+  let s = line;
+  for (;;) {
+    const next = s.replace(MARKER_DASH, '').replace(MARKER_DOT, '');
+    if (next === s) return s.trim();
+    s = next;
+  }
+}
+
 /**
  * Derives the canonical text for a profile item from its payload.
  *
@@ -41,12 +94,10 @@ function assemble(
       return str('text');
     case 'experience': {
       const head = `${str('role')}${str('company') ? ` — ${str('company')}` : ''}${dateRange(str('start'), str('end'))}`;
-      // Users paste bullets with their own list markers; keep one marker (the
-      // "• " added below) instead of rendering "• - Designed…".
-      const bullets = list('bullets')
-        .map((b) => b.replace(/^[-–—•*]\s+/, '').trim())
-        .filter((b) => b !== '');
-      return bullets.length > 0 ? `${head}\n${bullets.map((b) => `• ${b}`).join('\n')}` : head;
+      // Bullets are stored as plain text — the renderer owns the marker, so a
+      // pasted "• - Designed…" can never stack a second one at display time.
+      const bullets = list('bullets').map(stripBullet).filter((b) => b !== '');
+      return bullets.length > 0 ? `${head}\n${bullets.join('\n')}` : head;
     }
     case 'education': {
       const what = [str('degree'), str('field')].filter(Boolean).join(' ');
@@ -100,5 +151,5 @@ export function splitProject(text: string): { name: string; desc: string; tech: 
 
 function dateRange(start: string, end: string): string {
   if (!start && !end) return '';
-  return ` (${start || '—'}–${end || 'present'})`;
+  return ` (${start ? formatDate(start) : '—'}–${end ? formatDate(end) : 'present'})`;
 }

@@ -4,7 +4,7 @@ import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { getItem, updateItem, deleteItem, revertText } from '@/lib/db/items';
 import { PAYLOAD_SCHEMAS } from '@/lib/domain/schemas';
-import { canonicalTextFor } from '@/lib/domain/canonical';
+import { canonicalTextFor, normalizeManualText } from '@/lib/domain/canonical';
 import { fieldHint } from '@/lib/domain/validation';
 import type { ProfileItem } from '@/lib/domain/types';
 
@@ -83,13 +83,15 @@ export async function PATCH(
       }
       patch.payload = parsed.data;
       // A payload edit re-derives the rendered text; an explicit
-      // canonicalText (manual line edit) wins over the derived form.
+      // canonicalText (manual line edit) wins over the derived form — but
+      // per-line markers are stripped: the renderer owns the bullet marker,
+      // so a hand-typed "• - x" can't stack markers at display time.
       patch.canonicalText =
         typeof body.canonicalText === 'string' && body.canonicalText.trim()
-          ? body.canonicalText.trim()
+          ? normalizeManualText(body.canonicalText)
           : canonicalTextFor(stored.type, parsed.data);
     } else if (typeof body.canonicalText === 'string' && body.canonicalText.trim()) {
-      patch.canonicalText = body.canonicalText.trim();
+      patch.canonicalText = normalizeManualText(body.canonicalText);
     }
 
     // Provenance invariant: the chain snapshots the wording an accepted

@@ -32,6 +32,29 @@ export interface ProfileItem {
   position: number;
 }
 
+// One traceable requirement pulled out of a job description. `id` is assigned
+// deterministically after extraction (never trusted from the model) and is
+// stable for a given extraction, so analyses and confirmations can point at it.
+export type ReqCategory =
+  | 'technical_skill'
+  | 'responsibility'
+  | 'experience'
+  | 'seniority'
+  | 'domain_knowledge'
+  | 'education_cert'
+  | 'communication';
+
+export interface JdRequirement {
+  id?: string;
+  description: string;
+  category: ReqCategory;
+  importance: 'mandatory' | 'preferred';
+  aliases: string[];
+  // Verbatim substring of the JD the requirement came from; null when the
+  // model couldn't cite one (an unverifiable citation is dropped, not kept).
+  sourceExcerpt: string | null;
+}
+
 // Job description extraction
 export interface JdExtraction {
   requiredSkills: string[];
@@ -41,6 +64,8 @@ export interface JdExtraction {
   domain: string;
   tools: string[];
   responsibilities: string[];
+  // Optional: JDs stored before requirement extraction still parse.
+  requirements?: JdRequirement[];
 }
 
 // Section IDs
@@ -83,6 +108,9 @@ export interface ResumeDocItem {
   sourceItemId: string;
   text: string;
   basis: string;
+  // Skills only: presentation label ("Backend", "Databases"…), grouped by the
+  // renderer. Never stored on the profile item — it is per-CV tailoring.
+  category?: string;
 }
 
 export interface ResumeSection {

@@ -188,6 +188,33 @@ export default function ResumeEditor({
   ).length;
   const draftCount = Object.keys(decisions).length;
 
+  // Honest pagination signal: the server reports the ACTUAL rendered page
+  // count (X-Resume-Pages) once the CV is exportable. Advisory — never
+  // blocks, never shrinks type or drops content to make the number fit.
+  const [pageInfo, setPageInfo] = useState<{ pages: number; limit: number } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (undecided > 0 || draftCount > 0) {
+        setPageInfo(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/resumes/${resume.id}/pdf`);
+        const pages = res.headers.get('X-Resume-Pages');
+        const limit = res.headers.get('X-Resume-Page-Limit');
+        if (!cancelled && res.ok && pages && limit) {
+          setPageInfo({ pages: Number(pages), limit: Number(limit) });
+        }
+      } catch {
+        // advisory only
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resume.id, undecided, draftCount, resume.doc]);
+
   const rows: SuggestionRow[] = resume.statuses.map((state) => {
     const d = decisions[state.suggestion.id];
     const merged: SuggestionState = d
@@ -271,7 +298,11 @@ export default function ResumeEditor({
                 <DownloadSimple aria-hidden size={16} weight="bold" />
                 Download PDF
               </a>
-            ) : (
+            ) : null}
+            {undecided === 0 && draftCount === 0 && pageInfo && pageInfo.pages > pageInfo.limit ? (
+              <Chip tone="amber">spans {pageInfo.pages} pages (limit {pageInfo.limit})</Chip>
+            ) : null}
+            {undecided + draftCount > 0 ? (
               <span
                 aria-disabled="true"
                 className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-4 py-1.5 text-sm font-medium text-faint"
@@ -279,7 +310,7 @@ export default function ResumeEditor({
                 <Lock aria-hidden size={14} />
                 Download PDF
               </span>
-            )}
+            ) : null}
           </div>
           <p className="mt-2 text-xs leading-5 text-mute">
             {draftCount > 0

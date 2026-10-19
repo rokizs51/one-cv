@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { JdExtraction } from '@/lib/domain/types';
+import { JdExtractionSchema } from '@/lib/domain/schemas';
 
 export interface JobDescription {
   id: string;
@@ -34,7 +35,7 @@ export async function createJd(
     id: data.id as string,
     owner: data.owner as string,
     raw: data.raw as string,
-    extraction: data.extraction as JdExtraction,
+    extraction: JdExtractionSchema.parse(data.extraction) as JobDescription['extraction'],
     createdAt: data.created_at as string,
   };
 }
@@ -64,7 +65,7 @@ export async function getJd(
     id: data.id as string,
     owner: data.owner as string,
     raw: data.raw as string,
-    extraction: data.extraction as JdExtraction,
+    extraction: JdExtractionSchema.parse(data.extraction) as JobDescription['extraction'],
     createdAt: data.created_at as string,
   };
 }
@@ -88,7 +89,7 @@ export async function listJds(
     id: row.id as string,
     owner: row.owner as string,
     raw: row.raw as string,
-    extraction: row.extraction as JdExtraction,
+    extraction: JdExtractionSchema.parse(row.extraction) as JobDescription['extraction'],
     createdAt: row.created_at as string,
   }));
 }

@@ -31,9 +31,9 @@ const onePageDoc: ResumeDoc = {
 
 describe('renderResumePdf + pdfPageCount', () => {
   it('renders a 1-page doc as exactly 1 page', async () => {
-    const bytes = await renderResumePdf(onePageDoc, 1);
-    const count = await pdfPageCount(bytes);
-    expect(count).toBe(1);
+    const { bytes, pages } = await renderResumePdf(onePageDoc, 1);
+    expect(pages).toBe(1);
+    expect(await pdfPageCount(bytes)).toBe(1);
   });
 
   it('renders a padded doc (25 fake experience bullets) as 2 pages', async () => {
@@ -51,8 +51,29 @@ describe('renderResumePdf + pdfPageCount', () => {
       ],
     };
 
-    const bytes = await renderResumePdf(paddedDoc, 2);
-    const count = await pdfPageCount(bytes);
-    expect(count).toBe(2);
+    const { pages } = await renderResumePdf(paddedDoc, 2);
+    expect(pages).toBe(2);
+  });
+
+  it('marker-dirty and legacy-"• "-prefixed bullets paginate identically (renderer strips, never stacks)', async () => {
+    const mk = (prefix: string): ResumeDoc => ({
+      ...onePageDoc,
+      sections: [
+        {
+          id: 'experience',
+          items: Array.from({ length: 20 }, (_, i) => ({
+            sourceItemId: `exp-${i}`,
+            text: `Role ${i} — Co ${i} (2020-01–present)\n${prefix}Led thing ${i} and shipped many features with lots of measurable impact text ${i}`.repeat(1),
+            basis: 'scored',
+          })),
+        },
+      ],
+    });
+    // legacy rows stored "• x"; new storage is plain; dirty input stacks "• - "
+    const legacy = await renderResumePdf(mk('• '), 2);
+    const plain = await renderResumePdf(mk(''), 2);
+    const dirty = await renderResumePdf(mk('• - '), 2);
+    expect(legacy.pages).toBe(plain.pages);
+    expect(dirty.pages).toBe(plain.pages);
   });
 });

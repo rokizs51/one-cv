@@ -64,7 +64,7 @@ describe('GET /api/resumes/:id', () => {
             jd_id: 'jd-1',
             mode: 'as_is',
             page_limit: 1,
-            doc: {},
+            doc: { header: { fullName: 'T', email: 't.com', phone: null, location: null, links: [] }, summary: null, sections: [] },
             suggestions: [],
             statuses: [],
             user_edits: {},
@@ -124,7 +124,7 @@ describe('DELETE /api/resumes/:id', () => {
         generated_resumes: {
           data: {
             id: RESUME_ID, owner: 'user-1', jd_id: 'jd-1', mode: 'as_is', page_limit: 1,
-            doc: {}, suggestions: [], statuses: [], user_edits: {},
+            doc: { header: { fullName: 'T', email: 't.com', phone: null, location: null, links: [] }, summary: null, sections: [] }, suggestions: [], statuses: [], user_edits: {},
             fit: { chosen: [], cuts: [], overflow: false },
             created_at: 'x', updated_at: 'x',
           },

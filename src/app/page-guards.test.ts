@@ -42,7 +42,7 @@ describe('authenticated pages redirect anonymous visitors to /login', () => {
   it.each([
     ['dashboard', () => DashboardPage()],
     ['profile', () => ProfilePage()],
-    ['generate', () => GeneratePage()],
+    ['generate', () => GeneratePage({ searchParams: Promise.resolve({}) })],
   ])('%s guards the session', async (_name, page) => {
     mockGetSessionUser.mockResolvedValue(null);
     expect(await settle(page)).toBe('redirected');
@@ -53,7 +53,7 @@ describe('authenticated pages redirect anonymous visitors to /login', () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'u@example.com' });
     expect(await settle(() => DashboardPage())).toBe('rendered');
     expect(await settle(() => ProfilePage())).toBe('rendered');
-    expect(await settle(() => GeneratePage())).toBe('rendered');
+    expect(await settle(() => GeneratePage({ searchParams: Promise.resolve({}) }))).toBe('rendered');
     expect(redirectCalls).toEqual([]);
   });
 });

@@ -115,7 +115,7 @@ describe('generate step', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       '/api/resumes/generate',
       expect.objectContaining({
-        body: JSON.stringify({ jdId: 'jd-1', mode: 'as_is', pageLimit: 1 }),
+        body: JSON.stringify({ jdId: 'jd-1', mode: 'as_is', pageLimit: 1, analysisId: null }),
       })
     );
   });
@@ -132,7 +132,7 @@ describe('generate step', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/resumes/generate',
         expect.objectContaining({
-          body: JSON.stringify({ jdId: 'jd-1', mode: 'enhance', pageLimit: 2 }),
+          body: JSON.stringify({ jdId: 'jd-1', mode: 'enhance', pageLimit: 2, analysisId: null }),
         })
       )
     );
@@ -157,5 +157,52 @@ describe('generate step', () => {
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login'));
     expect(sessionStorage.getItem('jd-draft')).toBe(validJd);
+  });
+});
+
+describe('match analysis integration', () => {
+  async function toConfigureStep() {
+    mockFetch.mockResolvedValueOnce(jsonResponse(200, { jdId: 'jd-1', extraction: sampleExtraction }));
+    render(<GenerateWizard />);
+    fireEvent.change(screen.getByLabelText(/job description/i), { target: { value: validJd } });
+    fireEvent.click(screen.getByRole('button', { name: /extract/i }));
+    await screen.findByRole('button', { name: /generate my cv/i });
+    mockFetch.mockReset();
+  }
+
+  it('"Analyze the match first" creates the analysis and navigates to it', async () => {
+    await toConfigureStep();
+    mockFetch.mockResolvedValue(
+      jsonResponse(201, { analysis: { id: 'a-9', status: 'completed' } })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze the match first/i }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith(
+      '/api/analyses',
+      expect.objectContaining({ body: JSON.stringify({ jdId: 'jd-1' }) })
+    ));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/analysis/a-9'));
+  });
+
+  it('deep link with jdId+analysisId loads the stored JD and passes the analysis to generate', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse(200, { jd: { id: 'jd-7', raw: 'stored jd text', extraction: sampleExtraction } })
+    );
+    render(<GenerateWizard initialJdId="jd-7" initialAnalysisId="a-3" />);
+
+    await screen.findByRole('button', { name: /generate my cv/i });
+    expect(screen.getByText(/tailoring to your match analysis/i)).toBeInTheDocument();
+
+    mockFetch.mockResolvedValue(jsonResponse(201, { resume: { id: 'resume-9' } }));
+    fireEvent.click(screen.getByRole('button', { name: /generate my cv/i }));
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/resumes/generate',
+        expect.objectContaining({
+          body: JSON.stringify({ jdId: 'jd-7', mode: 'as_is', pageLimit: 1, analysisId: 'a-3' }),
+        })
+      )
+    );
   });
 });

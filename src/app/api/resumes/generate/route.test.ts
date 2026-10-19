@@ -342,4 +342,59 @@ describe('POST /api/resumes/generate', () => {
     expect(fakeGenAI.calls.enhance.length).toBe(0);
     expect(fakeGenAI.calls.composeSummary.length).toBe(0);
   });
+
+  it('returns 409 stale_analysis when the profile moved past the analysis fingerprint', async () => {
+    mockGetSessionUser.mockResolvedValue({ id: 'user-1', email: 'test@example.com' });
+    mockAiConfig.mockReturnValue({
+      provider: 'anthropic',
+      extractionModel: 'claude-sonnet-20241022',
+      enhanceModel: 'claude-sonnet-20241022',
+      monthlyCostCeilingMicros: 1000000,
+    });
+
+    const supa = createSupaStub({
+      from: {
+        profiles: {
+          data: { id: 'profile-1', user_id: 'user-1', personal: { fullName: 'T', email: 't@example.com', phone: null, location: null, links: [] } },
+          error: null,
+        },
+        profile_items: { data: [], error: null },
+        job_descriptions: {
+          data: { id: 'jd-1', owner: 'user-1', raw: 'x', extraction: { requiredSkills: [], preferredSkills: [], keywords: [], seniority: 'mid', domain: 'd', tools: [], responsibilities: [] }, created_at: '2026-10-18T00:00:00Z' },
+          error: null,
+        },
+        generation_quota: { data: { generations: 0, llm_cost_micros: 0 }, error: null },
+        match_analyses: {
+          data: {
+            id: 'a-1', owner: 'user-1', jd_id: 'jd-1', status: 'completed',
+            result: {
+              requirements: [], matches: [],
+              summary: {
+                totals: { requirements: 0, supported: 0, partial: 0, needs_review: 0, not_established: 0, not_applicable: 0 },
+                byImportance: { mandatory: {}, preferred: {} },
+                strongest: [], gaps: [], questions: [], adjustments: [],
+              },
+            },
+            error: null,
+            profile_fingerprint: 'fingerprint-of-an-older-profile',
+            created_at: '2026-10-18T00:00:00Z',
+            updated_at: '2026-10-18T00:00:00Z',
+          },
+          error: null,
+        },
+      },
+      rpc: { month_llm_cost: { data: 0, error: null } },
+    });
+    mockCreateRouteClient.mockResolvedValue(supa as any);
+    mockCreateGenAI.mockReturnValue(makeFakeGenAI());
+
+    const response = await POST(
+      createRequest({ jdId: 'jd-1', mode: 'as_is', pageLimit: 1, analysisId: 'a-1' })
+    );
+    const data = await response.json();
+
+    // empty items ⇒ live fingerprint is hash of '' ≠ stored one ⇒ stale
+    expect(response.status).toBe(409);
+    expect(data.error.code).toBe('stale_analysis');
+  });
 });

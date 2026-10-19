@@ -4,7 +4,14 @@ import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { createGenAI } from '@/lib/ai/client';
 import { aiConfig } from '@/lib/ai/env';
-import { generateResume, QuotaExceededError, GenerationUnavailableError, NotFoundError } from '@/lib/resume/orchestrate';
+import {
+  generateResume,
+  QuotaExceededError,
+  GenerationUnavailableError,
+  NotFoundError,
+  StaleAnalysisError,
+  AnalysisIncompleteError,
+} from '@/lib/resume/orchestrate';
 import type { GenMode } from '@/lib/domain/types';
 
 export async function POST(request: Request) {
@@ -19,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     // Parse request body
-    let body: { jdId?: string; mode?: string; pageLimit?: number };
+    let body: { jdId?: string; mode?: string; pageLimit?: number; analysisId?: string | null };
     try {
       body = await request.json();
     } catch {
@@ -29,7 +36,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { jdId, mode, pageLimit } = body;
+    const { jdId, mode, pageLimit, analysisId } = body;
+    if (analysisId !== undefined && analysisId !== null && typeof analysisId !== 'string') {
+      return NextResponse.json(
+        { error: { code: 'invalid_request', message: 'Field "analysisId" must be a string or null' } },
+        { status: 400 }
+      );
+    }
     
     // Validate required fields
     if (!jdId || typeof jdId !== 'string') {
@@ -75,6 +88,7 @@ export async function POST(request: Request) {
         jdId,
         mode: mode as GenMode,
         pageLimit: pageLimit as 1 | 2,
+        analysisId: analysisId ?? null,
       }
     );
 
@@ -99,6 +113,20 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: { code: 'not_found', message: error.message } },
         { status: 404 }
+      );
+    }
+
+    if (error instanceof StaleAnalysisError) {
+      return NextResponse.json(
+        { error: { code: 'stale_analysis', message: error.message } },
+        { status: 409 }
+      );
+    }
+
+    if (error instanceof AnalysisIncompleteError) {
+      return NextResponse.json(
+        { error: { code: 'analysis_incomplete', message: error.message } },
+        { status: 409 }
       );
     }
     

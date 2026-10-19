@@ -5,19 +5,21 @@ import type { ResumeDoc } from '@/lib/domain/types';
 import { ResumeDocument } from './document';
 
 /**
- * Renders a ResumeDoc to a PDF buffer.
- * Returns Uint8Array for portability.
+ * Renders a ResumeDoc to a PDF buffer, with the honest rendered page count —
+ * pageLimit stops being a dead prop: callers compare pages against it instead
+ * of trusting the chars/line estimate alone.
  */
 export async function renderResumePdf(
   doc: ResumeDoc,
   pageLimit: 1 | 2,
-): Promise<Uint8Array> {
+): Promise<{ bytes: Uint8Array; pages: number }> {
   // renderToBuffer's type demands a <Document>-rooted element; the component
   // produces that <Document> at render time, but React.createElement can only
   // infer the component's own props type. Cast to the renderer's expected arg.
   const element = React.createElement(ResumeDocument, { doc, pageLimit });
   const buffer = await renderToBuffer(element as Parameters<typeof renderToBuffer>[0]);
-  return new Uint8Array(buffer);
+  const bytes = new Uint8Array(buffer);
+  return { bytes, pages: await pdfPageCount(bytes) };
 }
 
 /**

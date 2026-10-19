@@ -40,6 +40,7 @@ export interface ChainBuilder {
   update(data: any): ChainBuilder;
   delete(): ChainBuilder;
   single(): Promise<SupaStubResponse>;
+  maybeSingle(): Promise<SupaStubResponse>;
 }
 
 export interface SupaStubConfig {
@@ -151,6 +152,11 @@ export function createSupaStub(config: SupaStubConfig = {}): SupaStub {
           
           // Default: no data, no error
           return { data: null, error: null };
+        },
+        async maybeSingle(): Promise<SupaStubResponse> {
+          const r = await builder.single();
+          const row = Array.isArray(r.data) ? (r.data as any[])[0] ?? null : r.data ?? null;
+          return { data: row, error: r.error ?? null };
         },
         // Make the builder thenable so it can be awaited
         then(resolve: any, reject: any) {

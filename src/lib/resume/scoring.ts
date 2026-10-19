@@ -161,6 +161,27 @@ const EARLY_CAREER_ORDER: SectionId[] = [
   'languages',
 ];
 
+/** Sort key for reverse-chronological experience: the end date as a numeric
+ * year ("2022-03" → 2022.17), ongoing (absent end) sorts first. Unparseable
+ * dates sink to the end; ties keep the user's manual order (stable sort). */
+function recencyKey(item: ProfileItem): number {
+  const parse = (v: unknown): number | null => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    if (typeof v === 'string') {
+      if (!v.trim()) return null; // empty end date means "present" → ongoing
+      const m = /^(\d{4})(?:-(\d{2}))?$/.exec(v.trim());
+      if (m) return Number(m[1]) + (m[2] ? (Number(m[2]) - 1) / 12 : 0);
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
+  const raw = item.payload.end;
+  const empty = raw === undefined || raw === null || (typeof raw === 'string' && raw.trim() === '');
+  if (empty) return Number.POSITIVE_INFINITY; // genuinely ongoing
+  return parse(raw) ?? Number.NEGATIVE_INFINITY; // unreadable date sinks, never poses as "present"
+}
+
 /**
  * Orders sections based on scored items and early career flag.
  * - Base order: experience, skills, education, projects, awards, languages
@@ -181,14 +202,15 @@ export function orderSections(
   const sections: ResumeSection[] = [];
   for (const sectionId of order) {
     if (sectionsWithItems.has(sectionId)) {
-      // Filter items for this section
-      const sectionItems = items
-        .filter((si) => si.section === sectionId)
-        .map((si) => ({
-          sourceItemId: si.item.id,
-          text: si.item.canonicalText,
-          basis: 'scored',
-        }));
+      // Filter items for this section; experience defaults to reverse
+      // chronological (most recent first) regardless of manual position.
+      const inSection = items.filter((si) => si.section === sectionId);
+      if (sectionId === 'experience') inSection.sort((a, b) => recencyKey(b.item) - recencyKey(a.item));
+      const sectionItems = inSection.map((si) => ({
+        sourceItemId: si.item.id,
+        text: si.item.canonicalText,
+        basis: 'scored',
+      }));
 
       sections.push({
         id: sectionId,
