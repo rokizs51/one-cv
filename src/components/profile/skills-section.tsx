@@ -112,7 +112,7 @@ export default function SkillsSection({ items, onPatch, onDelete, onCreateBatch 
   return (
     <Card className="p-4 sm:p-5">
       {items.length > 0 && (
-        <ul className="mb-4 divide-y divide-line">
+        <ul className="mb-3 space-y-1.5">
           {items.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center gap-2 py-2">
               <input

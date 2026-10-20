@@ -18,6 +18,12 @@ import SignOutButton from '@/components/sign-out-button';
 const COLLAPSE_KEY = 'sidebar-collapsed';
 const COLLAPSE_EVENT = 'sidebar-collapsed-change';
 
+// Both float over content; their edge is a boundary, not decoration.
+const TOPBAR_CLS =
+  'sticky top-0 z-40 flex items-center justify-between border-b border-line bg-surface px-4 py-2 lg:hidden'; // taste-skill-ignore
+const DRAWER_CLS =
+  'absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-surface shadow-xl'; // taste-skill-ignore
+
 // Owner's collapse preference lives in localStorage — an external store.
 // useSyncExternalStore (not an effect + setState) keeps hydration correct:
 // server renders expanded, the client snapshot takes over right after.
@@ -71,7 +77,7 @@ function NavLinks({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
       {NAV_GROUPS.map((group) => (
         <div key={group.title}>
           {!collapsed && (
-            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">
+            <p className="mb-1.5 px-3 text-[13px] font-medium text-mute">
               {group.title}
             </p>
           )}
@@ -114,7 +120,7 @@ function Wordmark() {
     >
       <span
         aria-hidden
-        className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-bar-blue to-bar-violet text-white"
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white"
       >
         <Scissors size={16} weight="bold" />
       </span>
@@ -152,7 +158,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
       {/* Desktop sidebar */}
       <aside
         className={
-          'sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-surface lg:flex ' +
+          'sticky top-0 hidden h-dvh shrink-0 flex-col bg-surface lg:flex ' +
           (collapsed ? 'w-[76px]' : 'w-60')
         }
       >
@@ -161,7 +167,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
             <Link
               href="/dashboard"
               title="Sever"
-              className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-bar-blue to-bar-violet text-white transition-colors hover:brightness-95 mx-auto"
+              className="mx-auto flex size-10 items-center justify-center rounded-lg bg-primary text-white transition-colors hover:brightness-95"
             >
               <Scissors aria-hidden size={18} weight="bold" />
             </Link>
@@ -170,7 +176,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
           )}
         </div>
         <NavLinks collapsed={collapsed} />
-        <div className="border-t border-line px-3 py-3">
+        <div className="px-3 py-3">
           <SignOutButton variant="nav" compact={collapsed} />
         </div>
         <button
@@ -178,7 +184,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
           onClick={toggleCollapsed}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-pressed={collapsed}
-          className="mx-3 mb-3 flex min-h-10 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm text-faint transition-colors hover:bg-surface-2 hover:text-ink"
+          className="mx-3 mb-3 flex min-h-10 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink"
         >
           <ArrowsLeftRight aria-hidden size={18} />
           {!collapsed && <span>Collapse</span>}
@@ -186,7 +192,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
       </aside>
 
       {/* Mobile sticky top bar */}
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-surface px-4 py-2 lg:hidden">
+      <div className={TOPBAR_CLS}>
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -207,7 +213,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
             onClick={() => setDrawerOpen(false)}
             aria-hidden
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-surface shadow-xl">
+          <div className={DRAWER_CLS}>
             <div className="flex items-center justify-between px-2 pt-3">
               <Wordmark />
               <button
@@ -220,7 +226,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
               </button>
             </div>
             <NavLinks collapsed={false} onNavigate={() => setDrawerOpen(false)} />
-            <div className="border-t border-line px-3 py-3">
+            <div className="px-3 py-3">
               <SignOutButton variant="nav" onNavigate={() => setDrawerOpen(false)} />
             </div>
           </div>
@@ -230,7 +236,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
       {/* Page content */}
       <div className="flex min-w-0 flex-1 flex-col">
         {email && (
-          <div className="hidden justify-end px-6 pt-4 text-xs text-faint lg:flex">
+          <div className="hidden justify-end px-6 pt-4 text-[13px] text-mute lg:flex">
             {email}
           </div>
         )}

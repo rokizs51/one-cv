@@ -14,18 +14,18 @@ export default async function LoginPage() {
   if (user) redirect('/dashboard');
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-wash-blue via-background to-wash-pink px-4 py-10">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-6 flex items-center justify-center gap-2.5 text-sm font-semibold tracking-tight text-ink">
           <span
             aria-hidden
-            className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-bar-blue to-bar-violet text-white"
+            className="flex size-9 items-center justify-center rounded-lg bg-primary text-white"
           >
             <Scissors size={17} weight="bold" />
           </span>
           Sever
         </div>
-        <div className="rounded-3xl border border-line bg-surface p-8">
+        <div className="rounded-3xl bg-surface p-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold tracking-tight text-ink">Welcome back</h1>
             <p className="mt-2 text-sm text-mute">Sign in to your account to continue</p>

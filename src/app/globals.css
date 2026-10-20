@@ -15,7 +15,8 @@
   --line-2: #d1d5db;
   --ink: #111827;
   --mute: #6b7280;
-  --faint: #9ca3af;
+  /* was #9ca3af — 2.5:1 on white, unreadable; raised to AA. */
+  --faint: #6b7280;
 
   /* primary — vibrant blue */
   --primary: #2563eb;
@@ -26,7 +27,8 @@
      fg/bg pairs are contrast-checked (>=4.5:1) in light mode. */
   --tone-blue: #1d4ed8;
   --wash-blue: #e0edff;
-  --tone-violet: #6d28d9;
+  /* categorical data hue (skill categories), never the page accent */
+  --tone-violet: #6d28d9; /* taste-skill-ignore */
   --wash-violet: #ede9fe;
   --tone-teal: #0f766e;
   --wash-teal: #ccfbf1;
@@ -43,7 +45,7 @@
 
   /* saturated bar fills (non-text — 3:1 against surface) */
   --bar-blue: #3b82f6;
-  --bar-violet: #8b5cf6;
+  --bar-violet: #8b5cf6; /* taste-skill-ignore: categorical bar hue */
   --bar-teal: #14b8a6;
   --bar-coral: #f97316;
   --bar-pink: #ec4899;
@@ -61,7 +63,8 @@
     --line-2: #3b434e;
     --ink: #f3f4f6;
     --mute: #9ca3af;
-    --faint: #6b7280;
+    /* #6b7280 is 3.9:1 on this ground — raised to AA. */
+    --faint: #8b93a1;
 
     --primary: #3b82f6;
     --primary-press: #60a5fa;
@@ -138,7 +141,6 @@
   --color-bar-red: var(--bar-red);
 
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 body {
@@ -158,6 +160,40 @@ body {
 ::selection {
   background: var(--wash-blue);
   color: var(--ink);
+}
+
+/* Landing entrances. Hidden states live under html.js (set by an inline script
+   before paint) and under no-preference, so with no script or reduced motion
+   every element is simply visible. Reveal wiring: components/landing/reveal.tsx. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+  .js .reveal.in {
+    opacity: 1;
+    transform: none;
+  }
+  /* Demo list rows re-rise each time the job changes (keyed remount). */
+  .demo-rise {
+    animation: rise 0.45s ease both;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  /* Slow settle on the CV-paper fragment. */
+  .paper-breathe {
+    animation: breathe 8s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    50% {
+      transform: translateY(-7px);
+    }
+  }
 }
 
 /* The interface must stay fully usable with motion turned off system-wide. */

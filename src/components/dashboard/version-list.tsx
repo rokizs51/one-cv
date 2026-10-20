@@ -84,7 +84,7 @@ export default function VersionList({
             <div className="flex items-center gap-2">
               <Link
                 href={`/resume/${r.id}`}
-                className="group flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-5 py-4 transition-all duration-150 hover:border-line-2 hover:bg-surface-2/60 active:scale-[0.995]"
+                className="group flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-5 py-4 transition-[background-color,border-color,transform] duration-150 hover:border-line-2 hover:bg-surface-2/60 active:scale-[0.995]"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span

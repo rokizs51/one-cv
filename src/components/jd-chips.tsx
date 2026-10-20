@@ -28,9 +28,7 @@ function ChipSection({ label, items, maxChips, renderedChips }: ChipProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-mute">
-        {label}:
-      </span>
+      <span className="mr-1 text-sm font-medium text-mute">{label}:</span>
       {chipsToShow.map((item, idx) => (
         <Chip key={`${label}-${idx}`} tone={SECTION_TONE[label] ?? 'neutral'}>
           {item}

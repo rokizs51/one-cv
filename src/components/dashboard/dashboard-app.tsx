@@ -107,10 +107,10 @@ export default function DashboardApp() {
   return (
     <main className="px-4 py-6 sm:px-8">
       <div className="mx-auto w-full max-w-4xl space-y-10">
-        {/* Hero: pastel gradient wash with greeting + omnibox */}
+        {/* Hero: one flat pastel wash field with greeting + omnibox */}
         <section
           aria-label="Start a new CV"
-          className="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-wash-blue via-wash-violet to-wash-pink px-6 py-8 sm:px-8"
+          className="relative overflow-hidden rounded-3xl bg-wash-blue px-6 py-8 sm:px-8"
         >
           <div className="relative">
             <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
@@ -128,7 +128,7 @@ export default function DashboardApp() {
                 onChange={(e) => setOmnibox(e.target.value)}
                 rows={2}
                 placeholder="Paste a job description here…"
-                className="min-h-12 flex-1 resize-none rounded-2xl border border-line bg-surface/80 px-4 py-3 text-sm text-ink placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="min-h-12 flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <button
                 type="button"

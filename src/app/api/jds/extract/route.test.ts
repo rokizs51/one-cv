@@ -263,7 +263,7 @@ describe('POST /api/jds/extract', () => {
     mockCreateGenAI.mockReturnValue(fakeGenAI);
 
     // Emoji soup (padded to pass length check)
-    const emojiSoup = '😀🎉🚀💻'.repeat(25);
+    const emojiSoup = '😀🎉🚀💻'.repeat(25); // taste-skill-ignore: adversarial input under test, not UI
     const response = await POST(createRequest({ raw: emojiSoup }));
     const data = await response.json();
 
