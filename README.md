@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sever — one profile, a CV for every job
 
-## Getting Started
+Sever keeps your career facts in one profile (experience, projects, skills,
+education) and generates an ATS-friendly, honest CV tailored to a specific job
+description. Paste a posting, optionally run a job-match analysis first, then
+generate — every rewrite is auditable and you accept or revert it.
 
-First, run the development server:
+Honesty is enforced as code, not as prompt advice:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- a rewrite that adds a number your profile doesn't contain is downgraded to
+  your own wording, with an explicit ask for the evidence;
+- rewrites leaning on banned puffery ("leverage", "robust", "seamless", …) are
+  likewise reverted;
+- JD requirement matches must cite verbatim evidence from your profile —
+  unsupported claims are dropped or demoted to `needs_review`, never asserted.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Next.js (App Router) · Supabase (auth + Postgres with RLS, anon key only — no
+service-role key anywhere) · Anthropic-SDK-compatible AI endpoint (any plan
+that speaks it, e.g. Qwen) · `@react-pdf/renderer` for the PDF.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> Note: this runs on a Next.js version with breaking changes vs. common
+> training data. `AGENTS.md` (auto-managed by `next dev`) tells coding agents
+> to read the bundled docs in `node_modules/next/dist/docs/` first.
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Install dependencies: `npm install`
+2. Create a Supabase project, then apply the migrations in `supabase/migrations/`
+   (in order — `0001_init.sql` … `0004_analyses.sql`) via the dashboard SQL
+   editor or `supabase db push`.
+3. Copy `.env.example` to `.env.local` and fill in the Supabase URL and anon
+   key (dashboard → Project Settings → API Keys) plus your AI endpoint base
+   URL, key, and model ids. The comments in `.env.example` cover the gotchas
+   (e.g. the base URL must end at `/v1`).
+4. `npm run dev` → http://localhost:3000
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Commands
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Command             | What it does                  |
+| ------------------- | ----------------------------- |
+| `npm run dev`       | Development server            |
+| `npm run build`     | Production build              |
+| `npm test`          | Vitest, full suite            |
+| `npm run test:watch`| Vitest, watch mode            |
+| `npm run lint`      | ESLint                        |
 
-## Deploy on Vercel
+## Where things live
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/app/api/` — route handlers: auth, profile items, JDs (extraction),
+  analyses (job-match), resumes (generate, fit, PDF).
+- `src/lib/ai/` — the GenAI provider interface: prompts, structured-output
+  parsing with retry, and the sanitizing trust-boundary passes above.
+- `src/lib/resume/` — generation orchestration and the PDF renderer
+  (`render/document.tsx`). The section order/labels follow
+  `docs/cv-structure-reference.md` — that doc is the spec; when you change the
+  template, change the doc in the same commit.
+- `src/lib/match/` — job-match analysis validation (evidence rules, statuses).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Docs
+
+- `docs/cv-structure-reference.md` — the ATS CV structure Sever targets (spec).
+- `docs/superpowers/` — the original v1 design spec and plan.
+- `docs/verify/` — per-task verification reports (RLS, auth, GenAI provider).
