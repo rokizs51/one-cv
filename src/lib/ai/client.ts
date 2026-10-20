@@ -36,10 +36,17 @@ export function hasUnsupportedNumbers(text: string, source: string): boolean {
 }
 
 /**
+ * The editor rubric's banned puffery, as code, not as prompt advice. Stems so
+ * inflected forms match too (leveraging, utilized, spearheading, dynamically).
+ */
+const BANNED_PUFFERY =
+  /\b(robust|seamless|leverag\w*|utiliz\w*|spearhead\w*|passionate|dynamic\w*|cutting-edge|results-driven|systematic)\b/i;
+
+/**
  * Trust-boundary pass over model suggestions: hallucinated item ids are
  * dropped, bullet markers normalized away (renderer owns them), and a rewrite
- * carrying an unsupported metric is downgraded to the user's own wording with
- * an explicit ask for the evidence.
+ * carrying an unsupported metric or banned puffery is downgraded to the user's
+ * own wording with an explicit explanation.
  */
 export function sanitizeSuggestions(
   suggestions: Suggestion[],
@@ -55,6 +62,12 @@ export function sanitizeSuggestions(
         ...s,
         newText: src.text,
         basis: 'Skipped a rewrite that added a number your entry does not contain. Add that figure to the entry if it is real, or accept to keep your wording.',
+      });
+    } else if (BANNED_PUFFERY.test(clean)) {
+      out.push({
+        ...s,
+        newText: src.text,
+        basis: 'Skipped a rewrite that used banned puffery (e.g. "leverage", "robust"). Accept to keep your wording.',
       });
     } else {
       out.push({ ...s, newText: clean });
@@ -307,9 +320,11 @@ ${itemsText}
 
 Instructions:
 - Rewrite each bullet to use vocabulary and keywords from the job description
-- Only use facts from the original text - do NOT invent new information
+- Only use facts from the original text - do NOT invent new information, numbers, or metrics
+- Never upgrade proficiency: "Basic" stays "Basic"; do not write "proficient", "expert" or "advanced" unless the original did
+- One line per bullet, max ~25 words, starting with a strong verb (past tense; present tense for the current role)
+- Banned words: robust, seamless, leverage, utilize, spearheaded, passionate, dynamic, cutting-edge, results-driven, systematic
 - Preserve the core meaning and achievements
-- Make the language more impactful and relevant to the target role
 - An item may start with a title line ("Role — Company (dates)") followed by bullet lines that start with "•". Keep such title lines verbatim and rewrite only the bullet lines.
 - Return a JSON object with a "suggestions" array
 
@@ -368,10 +383,9 @@ Target Job Context:
 ${jdContext}
 
 Instructions:
-- Write exactly 3 lines or fewer
+- Write exactly 2 sentences, 40 words maximum: role title + years of experience + 2-3 strengths relevant to the target job
+- Plain factual language. Banned words: robust, seamless, leverage, utilize, spearheaded, passionate, dynamic, cutting-edge, results-driven, systematic
 - Use only information from the snapshot and facts provided
-- Tailor the language to match the target job
-- Be concise and impactful
 - Do NOT invent information not present in the inputs`;
 
       const result = await generateText({

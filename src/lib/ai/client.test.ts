@@ -105,6 +105,15 @@ describe('sanitizeSuggestions', () => {
     expect(out[0].basis).toMatch(/number your entry does not contain/);
   });
 
+  it('downgrades banned puffery (inflected forms too) to the user wording', () => {
+    const out = sanitizeSuggestions(
+      [{ id: 's0', targetItemId: 'e1', kind: 'bullet', newText: 'Leveraged robust pipelines', basis: 'b' }],
+      items
+    );
+    expect(out[0].newText).toBe('Dev — Acme (2022–2023)\nBuilt X');
+    expect(out[0].basis).toMatch(/puffery/);
+  });
+
   it('strips stacked bullet markers from accepted wording', () => {
     const out = sanitizeSuggestions(
       [{ id: 's0', targetItemId: 'e1', kind: 'bullet', newText: 'Dev — Acme (2022–2023)\n• - Built X', basis: 'b' }],
