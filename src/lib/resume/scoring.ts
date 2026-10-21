@@ -222,17 +222,30 @@ export function orderSections(
   return sections;
 }
 
+/** Integer year from a payload date value ("2024-02", 2023) or null when absent/unreadable. */
+function yearOf(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const y = parseInt(v, 10);
+    return Number.isNaN(y) ? null : y;
+  }
+  return null;
+}
+
 /**
  * Determines if a candidate is early career based on their profile items.
- * 
+ *
  * Per plan: early career if:
  * - NO experience item has (end absent OR end >= currentYear - 2), OR
- * - Any education item has graduation (endYear) within 3 years of today
- * 
+ * - Any education item has graduation (endYear) within 3 years of today, while
+ *   no ongoing/recent work started after that graduation
+ *
  * Interpretation: ongoing or recent work = established career. Only when all work
  * ended >2 years ago (stale) or no experience exists, treat as education-first ordering.
- * Recent graduates override this — even with established work history, show education first.
- * 
+ * A recent graduate overrides this only while their work is student-era (started
+ * before or in the graduation year — internships); work begun after graduation is
+ * employment, and employment first on the CV.
+ *
  * This is a simple deterministic rule for section ordering.
  * Pass an explicit `now` (orchestrate passes deps.now) so the year boundary
  * is deterministic in tests; defaults to wall-clock.
@@ -247,37 +260,27 @@ export function isEarlyCareer(items: ProfileItem[], now: Date = new Date()): boo
   // i.e., all experience items have: end present AND end < currentYear - 2
   // If no experience items, vacuously true → early career
   const allExperienceStale = experienceItems.every((item) => {
-    const end = item.payload.end;
-    // No end date means ongoing → not early career (this item violates the rule)
-    if (!end) return false;
-
-    // payload.end may be a numeric year or a numeric string; coerce to number.
-    const endYear =
-      typeof end === 'number' ? end : typeof end === 'string' ? parseInt(end, 10) : NaN;
-    if (isNaN(endYear)) return false;
-
-    // End year < current year - 2 means ended more than 2 years ago (stale)
-    return endYear < currentYear - 2;
+    // Ongoing (absent end) or unreadable violates the rule
+    const endYear = yearOf(item.payload.end);
+    return endYear !== null && endYear < currentYear - 2;
   });
 
-  // Check if any education graduated within 3 years (endYear in education payload)
-  const recentGraduate = educationItems.some((item) => {
-    const gradYear = item.payload.endYear;
-    if (!gradYear) return false;
+  const gradYears = educationItems
+    .map((item) => yearOf(item.payload.endYear))
+    .filter((y): y is number => y !== null);
+  const recentGraduate = gradYears.some((year) => year >= currentYear - 3);
 
-    // payload.endYear may be a numeric year or a numeric string; coerce to number.
-    const year =
-      typeof gradYear === 'number'
-        ? gradYear
-        : typeof gradYear === 'string'
-          ? parseInt(gradYear, 10)
-          : NaN;
-    if (isNaN(year)) return false;
+  // Work that started after the last graduation is a career, not student
+  // experience — even a fresh graduate with such work leads with experience.
+  const lastGrad = gradYears.length > 0 ? Math.max(...gradYears) : null;
+  const establishedSinceGraduation =
+    lastGrad !== null &&
+    experienceItems.some((item) => {
+      const startYear = yearOf(item.payload.start);
+      if (startYear === null || startYear <= lastGrad) return false;
+      const endYear = yearOf(item.payload.end);
+      return endYear === null || endYear >= currentYear - 2; // ongoing or recent
+    });
 
-    // Graduated within 3 years
-    return year >= currentYear - 3;
-  });
-
-  // Early career if all experience is stale (or none exists) OR recent graduation
-  return allExperienceStale || recentGraduate;
+  return allExperienceStale || (recentGraduate && !establishedSinceGraduation);
 }

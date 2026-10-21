@@ -407,6 +407,42 @@ describe('isEarlyCareer', () => {
     expect(isEarlyCareer(items)).toBe(false);
   });
 
+  it('returns false when a recent graduate has ongoing work started after graduation', () => {
+    const currentYear = new Date().getFullYear();
+    const items: ProfileItem[] = [
+      makeItem({
+        type: 'education',
+        id: '1',
+        payload: { endYear: currentYear - 3 }, // graduated 3 years ago
+      }),
+      makeItem({
+        type: 'experience',
+        id: '2',
+        payload: { start: `${currentYear - 2}-06`, end: '' }, // hired after graduation, ongoing
+      }),
+    ];
+
+    expect(isEarlyCareer(items)).toBe(false);
+  });
+
+  it('stays early career when the recent graduate has only student-era ongoing work', () => {
+    const currentYear = new Date().getFullYear();
+    const items: ProfileItem[] = [
+      makeItem({
+        type: 'education',
+        id: '1',
+        payload: { endYear: currentYear - 1 }, // graduated last year
+      }),
+      makeItem({
+        type: 'experience',
+        id: '2',
+        payload: { start: `${currentYear - 2}-03` }, // internship begun before graduation, ongoing
+      }),
+    ];
+
+    expect(isEarlyCareer(items)).toBe(true);
+  });
+
   it('is deterministic in the injected now (orchestrate passes deps.now)', () => {
     // Same data; the stale-vs-recent boundary moves only with `now`.
     const items: ProfileItem[] = [
