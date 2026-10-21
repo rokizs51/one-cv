@@ -11,8 +11,8 @@ import type { ResumeDoc } from '@/lib/domain/types';
  */
 export default function Preview({ doc, pageLimit }: { doc: ResumeDoc; pageLimit: 1 | 2 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface p-2">
-      <div className="h-[70vh] overflow-hidden rounded-xl bg-surface-2">
+    <div className="overflow-hidden  border border-line bg-surface p-2">
+      <div className="h-[70vh] overflow-hidden  bg-surface-2">
         <PDFViewer showToolbar={false} width="100%" height="100%" style={{ border: 0 }}>
           <ResumeDocument doc={doc} pageLimit={pageLimit} />
         </PDFViewer>

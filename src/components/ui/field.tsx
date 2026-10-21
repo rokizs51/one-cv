@@ -1,20 +1,19 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import { useId } from 'react';
 
-/* Pill inputs on white, thin line, blue focus ring. Textareas keep a large
-   radius (pill corners read badly on tall boxes). Errors render under the
-   field, wired with aria-describedby. */
+/* Square inputs on paper, thin line, pencil-red focus. Errors render under
+   the field, wired with aria-describedby. */
 
 const inputCls =
-  'w-full rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink ' +
+  'w-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink ' +
   'placeholder:text-faint transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 const textareaCls =
-  'w-full resize-y rounded-2xl border border-line-2 bg-surface px-4 py-3 text-sm text-ink ' +
+  'w-full resize-y border border-line-2 bg-surface px-4 py-3 text-sm text-ink ' +
   'placeholder:text-faint transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 const selectCls =
-  'rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink ' +
+  'border border-line-2 bg-surface px-4 py-2 text-sm text-ink ' +
   'transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 interface FieldShellProps {

@@ -25,7 +25,7 @@ interface SkillsSectionProps {
 // are trying to shorten. Row inputs carry aria-labels; the section states the
 // pattern once in helper text instead of repeating labels per row.
 const inputCls =
-  'min-w-40 flex-1 rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink ' +
+  'min-w-40 flex-1  border border-line-2 bg-surface px-4 py-2 text-sm text-ink ' +
   'transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 const nameOf = (item: ProfileItem) => String(item.payload.name ?? '');
@@ -48,7 +48,7 @@ function LevelSelect({
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="min-w-36 cursor-pointer rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+      className="min-w-36 cursor-pointer  border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
     >
       <option value="">No level</option>
       {legacy.map((l) => (
@@ -207,7 +207,7 @@ export default function SkillsSection({ items, onPatch, onDelete, onCreateBatch 
       {pending.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {pending.map((p, i) => (
-            <Chip key={`${p.name}-${i}`} tone="teal">
+            <Chip key={`${p.name}-${i}`}>
               {p.name}
               {p.level ? ` (${p.level})` : ''}
               <button
@@ -234,12 +234,12 @@ export default function SkillsSection({ items, onPatch, onDelete, onCreateBatch 
       )}
 
       <p className="mt-3 text-xs leading-5 text-mute">
-        Type a skill (or press Enter) to queue it — nothing is sent until you save the whole
+        Type a skill (or press Enter) to queue it. Nothing is sent until you save the whole
         batch. Levels show on your CV as “Python (Advanced)”.
       </p>
 
       {error && (
-        <div role="alert" className="mt-3 rounded-2xl bg-wash-red px-3 py-2 text-sm text-tone-red">
+        <div role="alert" className="mt-3  bg-wash-red px-3 py-2 text-sm text-tone-red">
           {error}
         </div>
       )}

@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   List,
   House,
-  Sparkle,
   UserCircle,
   Gear,
   ArrowsLeftRight,
@@ -18,9 +17,10 @@ import SignOutButton from '@/components/sign-out-button';
 const COLLAPSE_KEY = 'sidebar-collapsed';
 const COLLAPSE_EVENT = 'sidebar-collapsed-change';
 
-// Both float over content; their edge is a boundary, not decoration.
+// Top bar is separated by a tone step, not a line. Only the drawer truly
+// floats, so it is the one thing allowed a shadow.
 const TOPBAR_CLS =
-  'sticky top-0 z-40 flex items-center justify-between border-b border-line bg-surface px-4 py-2 lg:hidden'; // taste-skill-ignore
+  'sticky top-0 z-40 flex items-center justify-between bg-surface px-4 py-2 lg:hidden';
 const DRAWER_CLS =
   'absolute inset-y-0 left-0 flex w-72 flex-col border-r border-line bg-surface shadow-xl'; // taste-skill-ignore
 
@@ -57,7 +57,7 @@ const NAV_GROUPS = [
     title: 'Workspace',
     links: [
       { href: '/dashboard', label: 'Dashboard', icon: House },
-      { href: '/generate', label: 'New CV', icon: Sparkle },
+      { href: '/generate', label: 'New CV', icon: Scissors },
     ],
   },
   {
@@ -92,10 +92,10 @@ function NavLinks({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
                     aria-current={active ? 'page' : undefined}
                     title={collapsed ? label : undefined}
                     className={
-                      'flex min-h-10 items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors ' +
+                      'flex min-h-10 items-center gap-3 border-l-[3px] border-transparent px-3 py-2 text-sm transition-colors ' +
                       (active
-                        ? 'bg-wash-blue font-medium text-tone-blue'
-                        : 'text-mute hover:bg-surface-2 hover:text-ink') +
+                        ? 'border-primary bg-surface-2 font-medium text-ink'
+                        : 'text-mute hover:bg-surface-2/70 hover:text-ink') +
                       (collapsed ? ' justify-center px-0' : '')
                     }
                   >
@@ -116,11 +116,11 @@ function Wordmark() {
   return (
     <Link
       href="/dashboard"
-      className="flex min-h-10 items-center gap-2.5 rounded-full px-3 py-2 transition-colors hover:bg-surface-2"
+      className="flex min-h-10 items-center gap-2.5 px-3 py-2 transition-colors hover:bg-surface-2"
     >
       <span
         aria-hidden
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white"
+        className="flex size-8 shrink-0 items-center justify-center rounded-none bg-primary text-white"
       >
         <Scissors size={16} weight="bold" />
       </span>
@@ -167,7 +167,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
             <Link
               href="/dashboard"
               title="Sever"
-              className="mx-auto flex size-10 items-center justify-center rounded-lg bg-primary text-white transition-colors hover:brightness-95"
+              className="mx-auto flex size-10 items-center justify-center rounded-none bg-primary text-white transition-colors hover:brightness-95"
             >
               <Scissors aria-hidden size={18} weight="bold" />
             </Link>
@@ -184,7 +184,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
           onClick={toggleCollapsed}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-pressed={collapsed}
-          className="mx-3 mb-3 flex min-h-10 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink"
+          className="mx-3 mb-3 flex min-h-10 items-center justify-center gap-2 px-3 py-2 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink"
         >
           <ArrowsLeftRight aria-hidden size={18} />
           {!collapsed && <span>Collapse</span>}
@@ -197,7 +197,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
           type="button"
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
-          className="flex size-10 items-center justify-center rounded-full text-mute transition-colors hover:bg-surface-2 hover:text-ink"
+          className="flex size-10 items-center justify-center text-mute transition-colors hover:bg-surface-2 hover:text-ink"
         >
           <List aria-hidden size={22} />
         </button>
@@ -220,7 +220,7 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 aria-label="Close menu"
-                className="mr-2 flex size-10 items-center justify-center rounded-full text-mute transition-colors hover:bg-surface-2 hover:text-ink"
+                className="mr-2 flex size-10 items-center justify-center text-mute transition-colors hover:bg-surface-2 hover:text-ink"
               >
                 <X aria-hidden size={20} />
               </button>

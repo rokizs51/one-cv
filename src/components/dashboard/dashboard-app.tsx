@@ -9,25 +9,14 @@ import type { ItemType, ProfileItem } from '@/lib/domain/types';
 import { TYPE_FIELDS, TYPE_LABELS } from '@/components/profile/fields';
 import type { ResumeSummary } from '@/lib/db/resumes';
 import Card, { SectionHeading } from '@/components/ui/card';
-import Chip, { type Tone } from '@/components/ui/chip';
-import Progress, { type BarColor } from '@/components/ui/progress';
+import Chip from '@/components/ui/chip';
+import Progress from '@/components/ui/progress';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { buttonCls } from '@/components/ui/button';
 
 // Every section counts toward completeness — derived, not re-listed, so a
 // new ItemType can't silently skip the panel (TYPE_FIELDS is Record<ItemType>).
 const CHECKED_TYPES = Object.keys(TYPE_FIELDS) as ItemType[];
-
-// Thematic color per profile section — the "multi-category metrics" palette.
-const TYPE_TONE: Record<ItemType, { bar: BarColor; tone: Tone }> = {
-  career_snapshot: { bar: 'blue', tone: 'blue' },
-  experience: { bar: 'violet', tone: 'violet' },
-  project: { bar: 'teal', tone: 'teal' },
-  education: { bar: 'coral', tone: 'coral' },
-  skill: { bar: 'pink', tone: 'pink' },
-  award: { bar: 'amber', tone: 'amber' },
-  language: { bar: 'green', tone: 'green' },
-};
 
 // A section's bar reads as "full" at a sane entry count (3 entries is plenty;
 // beyond that the extra detail belongs in the profile, not the gauge).
@@ -55,6 +44,16 @@ export default function DashboardApp() {
       .catch(() => {
         window.location.href = '/login';
       });
+  }, []);
+
+  // The landing page hands a pasted posting over on this channel; adopt it
+  // before the wizard can claim it.
+  useEffect(() => {
+    const draft = sessionStorage.getItem('jd-draft');
+    if (draft) {
+      setOmnibox(draft);
+      sessionStorage.removeItem('jd-draft');
+    }
   }, []);
 
   const counts = useMemo(() => {
@@ -107,20 +106,20 @@ export default function DashboardApp() {
   return (
     <main className="px-4 py-6 sm:px-8">
       <div className="mx-auto w-full max-w-4xl space-y-10">
-        {/* Hero: one flat pastel wash field with greeting + omnibox */}
+        {/* Hero: one full ink field, the page's single deliberate inversion */}
         <section
           aria-label="Start a new CV"
-          className="relative overflow-hidden rounded-3xl bg-wash-blue px-6 py-8 sm:px-8"
+          className="bg-ink px-6 py-8 text-background sm:px-8"
         >
           <div className="relative">
-            <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               Let&apos;s tailor your CV
             </h1>
-            <p className="mt-1 text-sm text-mute">
+            <p className="mt-1 text-sm text-background/75">
               One profile, a CV for every job. Paste a posting and go.
             </p>
 
-            {/* Omnibox — the embedded AI input pattern, wired to the wizard */}
+            {/* Omnibox, wired to the wizard through the draft channel */}
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
               <textarea
                 aria-label="Paste a job description to start a new CV"
@@ -128,7 +127,7 @@ export default function DashboardApp() {
                 onChange={(e) => setOmnibox(e.target.value)}
                 rows={2}
                 placeholder="Paste a job description here…"
-                className="min-h-12 flex-1 resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="min-h-12 flex-1 resize-none border border-transparent bg-surface px-4 py-3 text-sm text-ink placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <button
                 type="button"
@@ -140,8 +139,8 @@ export default function DashboardApp() {
                 Build a CV
               </button>
             </div>
-            <p className="mt-2 text-xs text-mute">
-              We only use what you paste — nothing is invented.
+            <p className="mt-2 text-xs text-background/75">
+              We only use what you paste. Nothing is invented.
             </p>
           </div>
         </section>
@@ -183,7 +182,7 @@ export default function DashboardApp() {
             {counts.byType.map(({ type, count }) => (
               <div key={type}>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
-                  <Chip tone={TYPE_TONE[type].tone}>{TYPE_LABELS[type]}</Chip>
+                  <Chip>{TYPE_LABELS[type]}</Chip>
                   <span className="text-xs tabular-nums text-mute">
                     {count === 0 ? 'empty' : `${count} ${count === 1 ? 'entry' : 'entries'}`}
                   </span>
@@ -191,7 +190,6 @@ export default function DashboardApp() {
                 <Progress
                   value={Math.min(count, SECTION_TARGET)}
                   max={SECTION_TARGET}
-                  color={TYPE_TONE[type].bar}
                   label={`${TYPE_LABELS[type]}: ${count} entries`}
                 />
               </div>

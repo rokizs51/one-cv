@@ -13,9 +13,9 @@ interface SectionFormProps {
 }
 
 const inputCls =
-  'w-full rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
+  'w-full  border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 const textareaCls =
-  'w-full resize-y rounded-2xl border border-line-2 bg-surface px-4 py-3 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
+  'w-full resize-y  border border-line-2 bg-surface px-4 py-3 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 /**
  * Collapsed "Add …" pill that expands into plain-language fields for one
@@ -48,7 +48,7 @@ export default function SectionForm({ type, onCreate }: SectionFormProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-line-2 px-4 py-2 text-sm font-medium text-mute transition-colors hover:border-primary hover:bg-wash-blue hover:text-tone-blue active:scale-[0.97]"
+        className="inline-flex min-h-10 cursor-pointer items-center gap-1.5  border border-dashed border-line-2 px-4 py-2 text-sm font-medium text-mute transition-colors hover:border-line-2 hover:bg-surface-2 hover:text-ink active:scale-[0.97]"
       >
         <Plus aria-hidden size={15} weight="bold" />
         Add {TYPE_LABELS[type].toLowerCase()}
@@ -89,7 +89,7 @@ export default function SectionForm({ type, onCreate }: SectionFormProps) {
       </div>
 
       {error && (
-        <div role="alert" className="mt-3 rounded-2xl bg-wash-red px-3 py-2 text-sm text-tone-red">
+        <div role="alert" className="mt-3  bg-wash-red px-3 py-2 text-sm text-tone-red">
           {error}
         </div>
       )}

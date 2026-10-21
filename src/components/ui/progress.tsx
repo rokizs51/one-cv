@@ -1,32 +1,16 @@
 /**
- * Flat horizontal progress bar — no gradient, no glow. Track is a quiet
- * surface-2 groove; fill is one of the saturated thematic colors. The
- * accessible value is carried by role="progressbar" + aria-value, and the
- * numeric label always sits beside the bar (color is never the only signal).
+ * Flat progress bar — one ink fill in a tone-step groove. No gradient, no
+ * glow, no categorical hues: the number beside the bar carries the meaning.
+ * The accessible value is carried by role="progressbar" + aria-value.
  */
-export type BarColor = 'blue' | 'violet' | 'teal' | 'coral' | 'pink' | 'amber' | 'green' | 'red';
-
-const FILL: Record<BarColor, string> = {
-  blue: 'bg-bar-blue',
-  violet: 'bg-bar-violet',
-  teal: 'bg-bar-teal',
-  coral: 'bg-bar-coral',
-  pink: 'bg-bar-pink',
-  amber: 'bg-bar-amber',
-  green: 'bg-bar-green',
-  red: 'bg-bar-red',
-};
-
 export default function Progress({
   value,
   max = 100,
-  color = 'blue',
   label,
   className = '',
 }: {
   value: number;
   max?: number;
-  color?: BarColor;
   /** Visible context, e.g. "3 of 5 entries" — rendered by the caller beside the bar. */
   label?: string;
   className?: string;
@@ -41,10 +25,10 @@ export default function Progress({
       aria-valuemin={0}
       aria-valuemax={max}
       aria-label={label}
-      className={`h-1.5 w-full overflow-hidden rounded-full bg-surface-2 ${className}`}
+      className={`h-1.5 w-full overflow-hidden bg-surface-2 ${className}`}
     >
       <div
-        className={`h-full rounded-full transition-[width] duration-500 ease-out ${FILL[color]}`}
+        className="h-full bg-bar transition-[width] duration-500 ease-out"
         style={{ width: `${pct}%` }}
       />
     </div>

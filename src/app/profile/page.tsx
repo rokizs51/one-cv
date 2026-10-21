@@ -18,7 +18,7 @@ export default async function ProfilePage() {
         <div className="mx-auto w-full max-w-2xl">
           <h1 className="text-3xl font-bold tracking-tight text-ink">Your profile</h1>
           <p className="mt-2 text-sm text-mute">
-            Record your story once — every CV is drawn from this. Nothing here is ever
+            Record your story once. Every CV is drawn from this. Nothing here is ever
             changed silently: accepted rewrites stay marked with an undo option.
           </p>
           <div className="mt-8">

@@ -1,13 +1,5 @@
 import type { JdExtraction } from '@/lib/domain/types';
-import Chip, { type Tone } from '@/components/ui/chip';
-
-// Thematic color per JD category — vibrant text on a pastel wash.
-const SECTION_TONE: Record<string, Tone> = {
-  Required: 'coral',
-  Preferred: 'violet',
-  Tools: 'teal',
-  Keywords: 'blue',
-};
+import Chip from '@/components/ui/chip';
 
 interface ChipProps {
   label: string;
@@ -30,9 +22,7 @@ function ChipSection({ label, items, maxChips, renderedChips }: ChipProps) {
     <div className="flex flex-wrap items-center gap-2">
       <span className="mr-1 text-sm font-medium text-mute">{label}:</span>
       {chipsToShow.map((item, idx) => (
-        <Chip key={`${label}-${idx}`} tone={SECTION_TONE[label] ?? 'neutral'}>
-          {item}
-        </Chip>
+        <Chip key={`${label}-${idx}`}>{item}</Chip>
       ))}
     </div>
   );

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Literata } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -7,9 +7,16 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+// The document face: everything that reads like a paper page, including
+// the whole landing, is set in Literata. Dense app surfaces keep the sans.
+const literata = Literata({
+  variable: "--font-literata",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: {
-    default: "Sever — one profile, a CV for every job",
+    default: "Sever: one profile, a CV for every job",
     template: "%s · Sever",
   },
   description:
@@ -20,7 +27,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} h-full antialiased`}
+      // The landing's pre-paint inline script adds a `js` class to <html>
+      // before hydration; React must not fight it.
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${literata.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

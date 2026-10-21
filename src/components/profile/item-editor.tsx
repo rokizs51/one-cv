@@ -21,9 +21,9 @@ interface ItemEditorProps {
 }
 
 const inputCls =
-  'w-full rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
+  'w-full  border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 const textareaCls =
-  'w-full resize-y rounded-2xl border border-line-2 bg-surface px-4 py-3 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
+  'w-full resize-y  border border-line-2 bg-surface px-4 py-3 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 export default function ItemEditor({ item, onPatch, onDelete }: ItemEditorProps) {
   const defs = TYPE_FIELDS[item.type];
@@ -55,7 +55,7 @@ export default function ItemEditor({ item, onPatch, onDelete }: ItemEditorProps)
         <span className="text-sm font-medium text-ink">
           {item.canonicalText.split('\n')[0].slice(0, 60)}
         </span>
-        {item.provenance.length > 0 && <Chip tone="violet">Enhanced</Chip>}
+        {item.provenance.length > 0 && <Chip>Enhanced</Chip>}
         {item.pinned && (
           <Chip tone="amber">
             <PushPin aria-hidden size={11} weight="fill" />
@@ -95,7 +95,7 @@ export default function ItemEditor({ item, onPatch, onDelete }: ItemEditorProps)
       </div>
 
       {error && (
-        <div role="alert" className="mt-3 rounded-2xl bg-wash-red px-3 py-2 text-sm text-tone-red">
+        <div role="alert" className="mt-3  bg-wash-red px-3 py-2 text-sm text-tone-red">
           {error}
         </div>
       )}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Lightning, MagnifyingGlass, Sparkle } from '@phosphor-icons/react';
+import { Check, Lightning, MagnifyingGlass, Scissors } from '@phosphor-icons/react';
 import { JdChips } from '@/components/jd-chips';
 import type { GenMode, JdExtraction } from '@/lib/domain/types';
 import Card, { SectionHeading } from '@/components/ui/card';
@@ -21,7 +21,7 @@ type Step = 'paste' | 'configure';
 function friendlyError(code: string | undefined, message: string | undefined): string {
   switch (code) {
     case 'quota':
-      return "You've used all 50 resumes this month — the count resets next month.";
+      return "You've used all 50 resumes this month. The count resets next month.";
     case 'budget_exhausted':
       return 'AI rewrites are paused while this month\'s AI budget recovers. "As-is" still works.';
     case 'not_found':
@@ -48,9 +48,9 @@ function StepPills({ step }: { step: Step }) {
             <span
               aria-current={current ? 'step' : undefined}
               className={
-                'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ' +
+                'flex items-center gap-2  px-3 py-1.5 text-xs font-medium transition-colors ' +
                 (current
-                  ? 'bg-wash-blue text-tone-blue'
+                  ? 'bg-surface-2 text-ink'
                   : done
                     ? 'bg-wash-green text-tone-green'
                     : 'bg-surface-2 text-mute')
@@ -225,7 +225,7 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
               Job description
             </label>
             <p className="mb-2 text-sm text-mute">
-              Paste the full posting here — requirements, responsibilities, everything.
+              Paste the full posting here: requirements, responsibilities, everything.
             </p>
             <textarea
               id="jd-raw"
@@ -233,7 +233,7 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
               onChange={(e) => setRaw(e.target.value)}
               rows={12}
               required
-              className="w-full resize-y rounded-2xl border border-line-2 bg-surface px-4 py-3 font-sans text-sm text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full resize-y  border border-line-2 bg-surface px-4 py-3 font-sans text-sm text-ink placeholder:text-faint transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="Senior engineer wanted. You will…"
             />
           </div>
@@ -241,7 +241,7 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
           {error && (
             <div
               role="alert"
-              className="rounded-2xl border border-line bg-wash-red px-4 py-3 text-sm text-tone-red"
+              className=" border border-line bg-wash-red px-4 py-3 text-sm text-tone-red"
             >
               {error}
             </div>
@@ -285,10 +285,10 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
 
         {analysisId && (
           <div
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-wash-green px-4 py-3 text-sm text-tone-green"
+            className="flex flex-wrap items-center justify-between gap-3  border border-line bg-wash-green px-4 py-3 text-sm text-tone-green"
             role="status"
           >
-            <span>Tailoring to your match analysis — the CV will follow its requirements.</span>
+            <span>Tailoring to your match analysis. The CV will follow its requirements.</span>
             <span className="flex items-center gap-2">
               <a href={`/analysis/${analysisId}`} className={buttonCls('ghost', 'sm', 'border-none bg-transparent')}>
                 View
@@ -314,9 +314,9 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
                 <label
                   key={m.value}
                   className={
-                    'flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-[background-color,border-color,transform] duration-150 ' +
+                    'flex cursor-pointer items-start gap-3  border p-4 transition-[background-color,border-color,transform] duration-150 ' +
                     (selected
-                      ? 'border-primary bg-wash-blue'
+                      ? 'border-primary bg-surface-2'
                       : 'border-line hover:border-line-2 hover:bg-surface-2/60')
                   }
                 >
@@ -345,7 +345,7 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
               id="page-limit"
               value={String(pageLimit)}
               onChange={(e) => setPageLimit(e.target.value === '2' ? 2 : 1)}
-              className="rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className=" border border-line-2 bg-surface px-4 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="1">1 page (recommended)</option>
               <option value="2">2 pages</option>
@@ -356,7 +356,7 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
         {error && (
           <div
             role="alert"
-            className="rounded-2xl border border-line bg-wash-red px-4 py-3 text-sm text-tone-red"
+            className=" border border-line bg-wash-red px-4 py-3 text-sm text-tone-red"
           >
             {error}
           </div>
@@ -364,7 +364,7 @@ export default function GenerateWizard({ initialJdId, initialAnalysisId }: Gener
 
         <div className="flex flex-wrap items-center gap-4">
           <Button onClick={handleGenerate} disabled={busy} size="lg">
-            <Sparkle aria-hidden size={18} weight="bold" />
+            <Scissors aria-hidden size={18} weight="bold" />
             {busy ? 'Generating…' : 'Generate my CV'}
           </Button>
           <Button variant="secondary" onClick={handleAnalyze} disabled={analyzing || busy || !jdId} size="lg">

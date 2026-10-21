@@ -42,8 +42,8 @@ export default function SuggestionReview({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-2xl bg-wash-green px-4 py-3 text-sm text-tone-green">
-        No suggestions — this CV uses your own wording throughout.
+      <p className=" bg-wash-green px-4 py-3 text-sm text-tone-green">
+        No suggestions. This CV uses your own wording throughout.
       </p>
     );
   }
@@ -57,7 +57,7 @@ export default function SuggestionReview({
         return (
           <li key={suggestion.id}>
             <Card className="p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-faint">
+              <p className="text-sm font-medium text-mute">
                 {isSummary ? 'Headline summary' : 'Bullet rewrite'}
               </p>
 
@@ -80,7 +80,7 @@ export default function SuggestionReview({
                       aria-label="Suggested wording"
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
-                      className="w-full resize-y rounded-2xl border border-line-2 bg-surface px-4 py-3 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full resize-y  border border-line-2 bg-surface px-4 py-3 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                     <div className="mt-2 flex gap-2">
                       <Button
@@ -127,7 +127,7 @@ export default function SuggestionReview({
                 )
               ) : (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Chip tone={status === 'accepted' ? 'green' : status === 'edited' ? 'blue' : 'neutral'}>
+                  <Chip tone={status === 'accepted' || status === 'edited' ? 'green' : 'neutral'}>
                     {OUTCOME_LABEL[status]}
                   </Chip>
                   {isDraft && <Chip tone="amber">Not applied</Chip>}

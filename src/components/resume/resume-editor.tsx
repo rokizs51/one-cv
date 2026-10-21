@@ -18,7 +18,7 @@ import { Button, buttonCls } from '@/components/ui/button';
 const Preview = dynamic(() => import('./preview'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[70vh] items-center justify-center rounded-2xl border border-line bg-surface text-sm text-mute">
+    <div className="flex h-[70vh] items-center justify-center  border border-line bg-surface text-sm text-mute">
       Rendering the page…
     </div>
   ),
@@ -244,13 +244,13 @@ export default function ResumeEditor({
         {overflow && (
           <div
             role="alert"
-            className="mt-4 rounded-2xl bg-wash-amber p-4 text-sm text-tone-amber"
+            className="mt-4  bg-wash-amber p-4 text-sm text-tone-amber"
           >
             <p className="font-medium">
               Pinned content alone is more than {resume.pageLimit === 2 ? 'two pages' : 'one page'}.
             </p>
             <p className="mt-1">
-              Nothing was dropped to make it fit — un-pin something on your profile
+              Nothing was dropped to make it fit. Un-pin something on your profile
               {resume.pageLimit === 1 ? ', or switch to two pages.' : '.'}
             </p>
             <div className="mt-3 flex gap-2">
@@ -305,7 +305,7 @@ export default function ResumeEditor({
             {undecided + draftCount > 0 ? (
               <span
                 aria-disabled="true"
-                className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-4 py-1.5 text-sm font-medium text-faint"
+                className="inline-flex items-center gap-2  bg-surface-2 px-4 py-1.5 text-sm font-medium text-faint"
               >
                 <Lock aria-hidden size={14} />
                 Download PDF
@@ -314,7 +314,7 @@ export default function ResumeEditor({
           </div>
           <p className="mt-2 text-xs leading-5 text-mute">
             {draftCount > 0
-              ? 'Decisions stay on this page until you apply them — the whole batch saves in one step.'
+              ? 'Decisions stay on this page until you apply them. The whole batch saves in one step.'
               : undecided > 0
                 ? `Decide every suggestion (${undecided} left) before exporting — the PDF only ever contains wording you approved.`
                 : 'Everything is applied. The PDF holds exactly the wording you approved.'}
@@ -324,7 +324,7 @@ export default function ResumeEditor({
         <SuggestionReview rows={rows} onDisposition={disposition} onUndo={undoDecision} />
 
         {error && (
-          <div role="alert" className="rounded-2xl bg-wash-red px-4 py-3 text-sm text-tone-red">
+          <div role="alert" className=" bg-wash-red px-4 py-3 text-sm text-tone-red">
             {error}
           </div>
         )}

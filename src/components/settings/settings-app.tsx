@@ -43,8 +43,8 @@ export default function SettingsApp() {
         <div>
           <SectionHeading className="mb-1">Your data</SectionHeading>
           <p className="max-w-md text-sm leading-6 text-mute">
-            Download everything you&apos;ve recorded — profile, job descriptions, and every
-            generated CV — as a JSON file.
+            Download everything youDownload everything you&apos;ve recorded — profile, job descriptions, and everyapos;ve recorded: profile, job descriptions, and every
+            generated CV, as a JSON file.
           </p>
         </div>
         <a href="/api/account/export" className={buttonCls('secondary', 'lg', 'shrink-0')}>
@@ -57,7 +57,7 @@ export default function SettingsApp() {
         <div className="mb-2 flex items-center gap-2.5">
           <span
             aria-hidden
-            className="flex size-9 items-center justify-center rounded-xl bg-wash-red text-tone-red"
+            className="flex size-9 items-center justify-center  bg-wash-red text-tone-red"
           >
             <Trash size={18} />
           </span>
@@ -65,7 +65,7 @@ export default function SettingsApp() {
         </div>
         <p className="mb-4 max-w-lg text-sm leading-6 text-mute">
           This permanently removes your profile, all recorded entries, saved job
-          descriptions, and every generated CV — including your sign-in. It cannot be
+          descriptions, and every generated CV, including your sign-in. It cannot be
           undone. Export first if you want a copy.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -80,7 +80,7 @@ export default function SettingsApp() {
               onChange={(e) => setConfirmText(e.target.value)}
               autoComplete="off"
               placeholder="DELETE"
-              className="w-48 rounded-full border border-tone-red/40 bg-surface px-4 py-2 text-sm text-ink transition-colors placeholder:text-faint focus:border-tone-red focus:outline-none focus:ring-2 focus:ring-tone-red/30"
+              className="w-48  border border-tone-red/40 bg-surface px-4 py-2 text-sm text-ink transition-colors placeholder:text-faint focus:border-tone-red focus:outline-none focus:ring-2 focus:ring-tone-red/30"
             />
           </div>
           <Button

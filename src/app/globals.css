@@ -1,101 +1,67 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------
-   Design tokens — "soft minimalist SaaS" (owner UI direction).
-   Depth comes from bg shifts + thin borders, not shadows.
+   Design tokens — "paper, ink and a red pencil" (owner UI direction,
+   2026-10-21, supersedes the Oct-18 soft-minimalist set).
+   One ground, one ink, one accent. The accent (pencil red) is for the
+   action and the marks the product makes on a document; red/amber/green
+   survive only as functional state colors. Categorical data is encoded
+   by its label text, never by hue. Depth comes from background tone
+   steps; no shadows except on things that truly float (the drawer).
    Every component consumes these semantic vars; light/dark parity is
    defined here only (no per-component dark: hex values).
    ------------------------------------------------------------------ */
 :root {
-  /* neutrals */
-  --background: #f8f9fa;
+  /* neutrals — paper and ink (neutral bone, not a yellow cream) */
+  --background: #f2f1ee;
   --surface: #ffffff;
-  --surface-2: #f3f4f6;
-  --line: #e5e7eb;
-  --line-2: #d1d5db;
-  --ink: #111827;
-  --mute: #6b7280;
-  /* was #9ca3af — 2.5:1 on white, unreadable; raised to AA. */
-  --faint: #6b7280;
+  --surface-2: #e7e6e2;
+  --line: #dcdad5;
+  --line-2: #c2bfb8;
+  --ink: #191817;
+  --mute: #5f5a53;
+  --faint: #5f5a53;
 
-  /* primary — vibrant blue */
-  --primary: #2563eb;
-  --primary-press: #1d4ed8;
+  /* primary — red pencil */
+  --primary: #b3261e;
+  --primary-press: #8c1d17;
   --primary-ink: #ffffff;
 
-  /* thematic accents: vibrant indicator + pastel wash per category.
-     fg/bg pairs are contrast-checked (>=4.5:1) in light mode. */
-  --tone-blue: #1d4ed8;
-  --wash-blue: #e0edff;
-  /* categorical data hue (skill categories), never the page accent */
-  --tone-violet: #6d28d9; /* taste-skill-ignore */
-  --wash-violet: #ede9fe;
-  --tone-teal: #0f766e;
-  --wash-teal: #ccfbf1;
-  --tone-coral: #c2410c;
-  --wash-coral: #ffedd5;
-  --tone-pink: #be185d;
-  --wash-pink: #fce7f3;
-  --tone-amber: #92400e;
-  --wash-amber: #fef3c7;
-  --tone-red: #dc2626;
-  --wash-red: #fee2e2;
-  --tone-green: #15803d;
-  --wash-green: #dcfce7;
+  /* functional states only (error / warning / success) */
+  --tone-red: #b3261e;
+  --wash-red: #f5e0dc;
+  --tone-amber: #7c5317;
+  --wash-amber: #f2e7d4;
+  --tone-green: #2e6032;
+  --wash-green: #e1ecde;
 
-  /* saturated bar fills (non-text — 3:1 against surface) */
-  --bar-blue: #3b82f6;
-  --bar-violet: #8b5cf6; /* taste-skill-ignore: categorical bar hue */
-  --bar-teal: #14b8a6;
-  --bar-coral: #f97316;
-  --bar-pink: #ec4899;
-  --bar-amber: #f59e0b;
-  --bar-green: #22c55e;
-  --bar-red: #ef4444;
+  /* bar fill — ink; the number beside it carries the meaning */
+  --bar: #191817;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f1216;
-    --surface: #171b21;
-    --surface-2: #1f242c;
-    --line: #2a3038;
-    --line-2: #3b434e;
-    --ink: #f3f4f6;
-    --mute: #9ca3af;
-    /* #6b7280 is 3.9:1 on this ground — raised to AA. */
-    --faint: #8b93a1;
+    --background: #171614;
+    --surface: #211f1d;
+    --surface-2: #2c2a27;
+    --line: #3a3833;
+    --line-2: #4c4941;
+    --ink: #f2f0ea;
+    --mute: #a39c91;
+    --faint: #a39c91;
 
-    --primary: #3b82f6;
-    --primary-press: #60a5fa;
-    --primary-ink: #ffffff;
+    --primary: #e26b5f;
+    --primary-press: #ef8d82;
+    --primary-ink: #191817;
 
-    /* dark mode uses desaturated/lower-luminance variants, not inversions */
-    --tone-blue: #93c5fd;
-    --wash-blue: #1c2a42;
-    --tone-violet: #c4b5fd;
-    --wash-violet: #2a2140;
-    --tone-teal: #5eead4;
-    --wash-teal: #12332f;
-    --tone-coral: #fdba74;
-    --wash-coral: #3a2413;
-    --tone-pink: #f9a8d4;
-    --wash-pink: #3a1a2b;
-    --tone-amber: #fcd34d;
-    --wash-amber: #3a2b12;
-    --tone-red: #f87171;
-    --wash-red: #3c1a1a;
-    --tone-green: #86efac;
-    --wash-green: #14321e;
+    --tone-red: #e26b5f;
+    --wash-red: #3d221d;
+    --tone-amber: #d9b56d;
+    --wash-amber: #362b17;
+    --tone-green: #90c794;
+    --wash-green: #1e301f;
 
-    --bar-blue: #2f6fd6;
-    --bar-violet: #7a52d6;
-    --bar-teal: #12998a;
-    --bar-coral: #d96319;
-    --bar-pink: #cf4384;
-    --bar-amber: #cf8716;
-    --bar-green: #2fa558;
-    --bar-red: #cf4444;
+    --bar: #f2f0ea;
   }
 }
 
@@ -114,33 +80,24 @@
   --color-primary-press: var(--primary-press);
   --color-on-primary: var(--primary-ink);
 
-  --color-tone-blue: var(--tone-blue);
-  --color-wash-blue: var(--wash-blue);
-  --color-tone-violet: var(--tone-violet);
-  --color-wash-violet: var(--wash-violet);
-  --color-tone-teal: var(--tone-teal);
-  --color-wash-teal: var(--wash-teal);
-  --color-tone-coral: var(--tone-coral);
-  --color-wash-coral: var(--wash-coral);
-  --color-tone-pink: var(--tone-pink);
-  --color-wash-pink: var(--wash-pink);
-  --color-tone-amber: var(--tone-amber);
-  --color-wash-amber: var(--wash-amber);
   --color-tone-red: var(--tone-red);
   --color-wash-red: var(--wash-red);
+  --color-tone-amber: var(--tone-amber);
+  --color-wash-amber: var(--wash-amber);
   --color-tone-green: var(--tone-green);
   --color-wash-green: var(--wash-green);
 
-  --color-bar-blue: var(--bar-blue);
-  --color-bar-violet: var(--bar-violet);
-  --color-bar-teal: var(--bar-teal);
-  --color-bar-coral: var(--bar-coral);
-  --color-bar-pink: var(--bar-pink);
-  --color-bar-amber: var(--bar-amber);
-  --color-bar-green: var(--bar-green);
-  --color-bar-red: var(--bar-red);
+  --color-bar: var(--bar);
 
   --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-literata);
+
+  /* Five type steps. display/clause/lead are fluid. */
+  --text-note: 0.875rem;
+  --text-body: clamp(1.0625rem, 1.02rem + 0.15vw, 1.1875rem);
+  --text-lead: clamp(1.1875rem, 1.05rem + 0.6vw, 1.5rem);
+  --text-clause: clamp(1.75rem, 1.35rem + 1.8vw, 2.5rem);
+  --text-display: clamp(2.5rem, 1.9rem + 2.8vw, 3.625rem);
 }
 
 body {
@@ -158,7 +115,7 @@ body {
 }
 
 ::selection {
-  background: var(--wash-blue);
+  background: var(--wash-red);
   color: var(--ink);
 }
 
@@ -175,7 +132,17 @@ body {
     opacity: 1;
     transform: none;
   }
-  /* Demo list rows re-rise each time the job changes (keyed remount). */
+  /* The signature move: the sheet on the stage re-sets itself. */
+  .sheet-in {
+    animation: sheet 0.8s ease both;
+  }
+  @keyframes sheet {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  /* Bullet rows rise in as the sheet re-sets (keyed remount). */
   .demo-rise {
     animation: rise 0.45s ease both;
   }
@@ -185,15 +152,36 @@ body {
       transform: translateY(10px);
     }
   }
-  /* Slow settle on the CV-paper fragment. */
-  .paper-breathe {
-    animation: breathe 8s ease-in-out infinite;
-  }
-  @keyframes breathe {
-    50% {
-      transform: translateY(-7px);
-    }
-  }
+}
+
+/* The stage slider: square thumb, quiet track. */
+.stage-range {
+  appearance: none;
+  width: 100%;
+  height: 2.25rem;
+  background: transparent;
+  cursor: pointer;
+}
+.stage-range::-webkit-slider-runnable-track {
+  height: 8px;
+  background: var(--surface-2);
+}
+.stage-range::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -10px;
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
+}
+.stage-range::-moz-range-track {
+  height: 8px;
+  background: var(--surface-2);
+}
+.stage-range::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: var(--primary);
 }
 
 /* The interface must stay fully usable with motion turned off system-wide. */

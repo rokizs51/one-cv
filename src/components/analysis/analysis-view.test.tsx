@@ -91,7 +91,7 @@ describe('AnalysisView', () => {
     mockFetch.mockResolvedValue(jsonResponse(200, { analysis: { ...analysis, result: confirmed }, stale: false }));
 
     render(<AnalysisView analysis={analysis} stale={false} evidenceText={evidenceText} />);
-    fireEvent.click(screen.getByRole('button', { name: /confirm — i have this/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm: i have this/i }));
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(

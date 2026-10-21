@@ -14,7 +14,7 @@ export interface CutRow {
 
 const REASON_LABEL: Record<CutRow['reason'], string> = {
   relevance: "Didn't match this job's keywords",
-  space: "Didn't fit on the page — higher-priority content was kept",
+  space: "Didn't fit on the page. Higher-priority content was kept",
 };
 
 /**
@@ -33,7 +33,7 @@ export default function MatchPanel({
 }) {
   if (!extraction) {
     return (
-      <p className="rounded-2xl bg-wash-amber px-4 py-3 text-sm text-tone-amber">
+      <p className=" bg-wash-amber px-4 py-3 text-sm text-tone-amber">
         The job description behind this CV is gone, so matching details are unavailable.
       </p>
     );
@@ -61,7 +61,7 @@ export default function MatchPanel({
                 {hits.length > 0 ? (
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {hits.map((k) => (
-                      <Chip key={k} tone="blue" className="px-2 py-0.5">
+                      <Chip key={k} className="px-2 py-0.5">
                         <Scan aria-hidden size={11} />
                         {k}
                       </Chip>
@@ -79,11 +79,11 @@ export default function MatchPanel({
       <section>
         <SectionHeading className="mb-3">Cut from this page</SectionHeading>
         {cuts.length === 0 ? (
-          <p className="text-sm text-mute">Nothing was cut — everything selected fits.</p>
+          <p className="text-sm text-mute">Nothing was cut. Everything selected fits.</p>
         ) : (
           <ul className="space-y-4">
             {cuts.map((c) => (
-              <li key={c.itemId} className="rounded-2xl bg-surface-2 px-4 py-3">
+              <li key={c.itemId} className=" bg-surface-2 px-4 py-3">
                 <p className="text-sm leading-6 text-mute line-through decoration-line-2">
                   {c.text}
                 </p>

@@ -52,7 +52,7 @@ export default function SignOutButton({
           title={compact ? 'Sign out' : undefined}
           aria-label={compact ? 'Sign out' : undefined}
           className={
-            'flex min-h-10 w-full cursor-pointer items-center gap-3 rounded-full px-3 py-2 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50' +
+            'flex min-h-10 w-full cursor-pointer items-center gap-3 border-l-[3px] border-transparent px-3 py-2 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50' +
             (compact ? ' justify-center px-0' : '')
           }
         >
@@ -70,7 +70,7 @@ export default function SignOutButton({
         type="button"
         onClick={signOut}
         disabled={busy}
-        className="min-h-9 cursor-pointer rounded-full px-3 py-1.5 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+        className="min-h-9 cursor-pointer px-3 py-1.5 text-sm text-mute transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
       >
         {busy ? 'Signing out…' : 'Sign out'}
       </button>

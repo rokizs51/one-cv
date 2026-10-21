@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { buttonCls } from '@/components/ui/button';
 
 const inputCls =
-  'w-full rounded-full border border-line-2 bg-surface px-4 py-2.5 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
+  'w-full border border-line-2 bg-surface px-4 py-2.5 text-sm text-ink transition-colors placeholder:text-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 export default function SignupForm() {
   const [email, setEmail] = useState('');
@@ -77,7 +77,7 @@ export default function SignupForm() {
       </div>
 
       {error && (
-        <div role="alert" className="rounded-2xl bg-wash-red px-4 py-2.5 text-sm text-tone-red">
+        <div role="alert" className="bg-wash-red px-4 py-2.5 text-sm text-tone-red">
           {error}
         </div>
       )}
@@ -87,7 +87,7 @@ export default function SignupForm() {
         disabled={loading}
         className={buttonCls('primary', 'lg', 'w-full')}
       >
-        {loading ? 'Signing up...' : 'Sign Up'}
+        {loading ? 'Signing up...' : 'Sign up'}
       </button>
     </form>
   );

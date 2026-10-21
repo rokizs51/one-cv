@@ -44,13 +44,13 @@ export default function VersionList({
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
         <span
           aria-hidden
-          className="flex size-12 items-center justify-center rounded-2xl bg-wash-blue text-tone-blue"
+          className="flex size-12 items-center justify-center bg-surface-2 text-mute"
         >
           <FilePdf size={24} />
         </span>
         <p className="text-sm font-medium text-ink">No CVs yet</p>
         <p className="max-w-xs text-sm text-mute">
-          Paste a job description in the box above — we&apos;ll build your first one from your
+          Paste a job description in the box above. WePaste a job description in the box above — we&apos;ll build your first one from yourapos;ll build your first one from your
           profile.
         </p>
       </Card>
@@ -84,12 +84,12 @@ export default function VersionList({
             <div className="flex items-center gap-2">
               <Link
                 href={`/resume/${r.id}`}
-                className="group flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-5 py-4 transition-[background-color,border-color,transform] duration-150 hover:border-line-2 hover:bg-surface-2/60 active:scale-[0.995]"
+                className="group flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3  border border-line bg-surface px-5 py-4 transition-[background-color,border-color,transform] duration-150 hover:border-line-2 hover:bg-surface-2/60 active:scale-[0.995]"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span
                     aria-hidden
-                    className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-wash-violet text-tone-violet"
+                    className="flex size-10 shrink-0 items-center justify-center bg-surface-2 text-mute"
                   >
                     <FilePdf size={20} />
                   </span>
@@ -98,9 +98,7 @@ export default function VersionList({
                       {dateLabel(r.createdAt)}
                     </span>
                     <span className="mt-0.5 flex flex-wrap gap-1.5">
-                      <Chip tone={r.mode === 'enhance' ? 'violet' : 'neutral'}>
-                        {MODE_LABEL[r.mode]}
-                      </Chip>
+                      <Chip>{MODE_LABEL[r.mode]}</Chip>
                       <Chip tone="neutral">{r.pageLimit === 2 ? '2 pages' : '1 page'}</Chip>
                     </span>
                   </span>
@@ -164,7 +162,7 @@ export default function VersionList({
       )}
 
       {error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-wash-red px-3 py-2 text-sm text-tone-red">
+        <p role="alert" className="mt-3  bg-wash-red px-3 py-2 text-sm text-tone-red">
           {error}
         </p>
       )}

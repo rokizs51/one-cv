@@ -19,9 +19,9 @@ import type { ItemType } from '@/lib/domain/types';
 const STATUS_META: Record<MatchStatus, { label: string; tone: Tone }> = {
   supported: { label: 'Supported', tone: 'green' },
   partial: { label: 'Partly supported', tone: 'amber' },
-  needs_review: { label: 'Needs your review', tone: 'blue' },
+  needs_review: { label: 'Needs your review', tone: 'amber' },
   not_established: { label: 'Not in your profile', tone: 'neutral' },
-  not_applicable: { label: 'Not applicable', tone: 'violet' },
+  not_applicable: { label: 'Not applicable', tone: 'neutral' },
 };
 
 interface AnalysisViewProps {
@@ -83,7 +83,7 @@ export default function AnalysisView({ analysis: initial, stale: initialStale, e
       <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight text-ink">Match analysis</h1>
         <p className="text-sm text-mute" role="status">
-          The analysis is still running — reload this page in a moment to see the result.
+          The analysis is still running. Reload this page in a moment to see the result.
         </p>
         <SkeletonCard />
         <SkeletonCard />
@@ -95,7 +95,7 @@ export default function AnalysisView({ analysis: initial, stale: initialStale, e
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight text-ink">Match analysis</h1>
-        <div role="alert" className="rounded-2xl border border-line bg-wash-red px-4 py-3 text-sm text-tone-red">
+        <div role="alert" className=" border border-line bg-wash-red px-4 py-3 text-sm text-tone-red">
           {analysis.error ?? 'The analysis failed.'}
         </div>
         <Button onClick={rerun} disabled={busy === 'rerun'}>
@@ -127,14 +127,14 @@ export default function AnalysisView({ analysis: initial, stale: initialStale, e
         <h1 className="text-3xl font-bold tracking-tight text-ink">Match analysis</h1>
         <p className="mt-2 text-sm text-mute">
           What this job asks for, checked against what your profile actually records.
-          Nothing here is a verdict about you — only about what&apos;s on file.
+          Nothing here is a verdict about you. Only about whatNothing here is a verdict about you — only about what&apos;s on file.apos;s on file.
         </p>
       </div>
 
       {stale && (
         <div
           role="status"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-wash-amber px-4 py-3 text-sm text-tone-amber"
+          className="flex flex-wrap items-center justify-between gap-3  border border-line bg-wash-amber px-4 py-3 text-sm text-tone-amber"
         >
           <span>Your profile changed since this analysis ran. These results are a snapshot of the old state.</span>
           <Button variant="soft" size="sm" onClick={rerun} disabled={busy === 'rerun'}>
@@ -219,7 +219,7 @@ export default function AnalysisView({ analysis: initial, stale: initialStale, e
                     )}
                     <p className="text-sm text-mute">{m.explanation}</p>
                     {m.followUpQuestion && (
-                      <p className="text-sm text-tone-blue">
+                      <p className="text-sm font-medium text-ink">
                         <span className="font-medium">To confirm:</span> {m.followUpQuestion}
                       </p>
                     )}
@@ -237,7 +237,7 @@ export default function AnalysisView({ analysis: initial, stale: initialStale, e
                     {confirmable && (
                       <div className="flex flex-wrap gap-2">
                         <Button variant="soft" size="sm" onClick={() => confirm(m.requirementId, 'supported')} disabled={busy === m.requirementId}>
-                          Confirm — I have this
+                          Confirm: I have this
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => confirm(m.requirementId, 'not_applicable')} disabled={busy === m.requirementId}>
                           Not applicable
@@ -273,7 +273,7 @@ export default function AnalysisView({ analysis: initial, stale: initialStale, e
       )}
 
       {error && (
-        <div role="alert" className="rounded-2xl border border-line bg-wash-red px-4 py-3 text-sm text-tone-red">
+        <div role="alert" className=" border border-line bg-wash-red px-4 py-3 text-sm text-tone-red">
           {error}
         </div>
       )}
