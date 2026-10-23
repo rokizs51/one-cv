@@ -25,6 +25,7 @@ const SECTION_ORDER: ItemType[] = [
   'experience',
   'project',
   'education',
+  'certification',
   'skill',
   'award',
   'language',

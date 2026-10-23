@@ -21,7 +21,8 @@ and hybrid formats parse worst.
 | 3 | Work experience | Reverse-chronological; the centerpiece |
 | 4 | Skills | Hard skills matching the JD, compact block |
 | 5 | Education | One line per degree |
-| 6+ | Optional: Projects, Awards, Languages | Appended after Education |
+| 6 | Certifications | One line per credential (name — issuer, year) |
+| 7+ | Optional: Projects, Awards, Languages | Appended after Education |
 
 Early-career deviation (pinned rule in `scoring.ts`): when the candidate is early
 career, Education and Projects move **above** Work Experience. Skills still follows
@@ -35,6 +36,7 @@ experience; optional tail unchanged.
 | experience | WORK EXPERIENCE |
 | skills | SKILLS |
 | education | EDUCATION |
+| certifications | CERTIFICATIONS |
 | projects | PROJECTS |
 | awards | AWARDS |
 | languages | LANGUAGES |
@@ -61,7 +63,8 @@ graphics/charts • emoji • custom fonts • creative section titles • unlab
 ## Where implemented
 
 - Section order: `src/lib/resume/scoring.ts` — `BASE_ORDER`, `EARLY_CAREER_ORDER`, `orderSections`
-- Document shape: `ResumeDoc` in `src/lib/domain/types.ts` (header, summary, sections[])
+- Document shape: `ResumeDoc` in `src/lib/domain/types.ts` (header, summary, sections[]; entries carry typed `header`/`bullets`/`technologies`)
+- Payload → entry fields: `structureFor` in `src/lib/domain/canonical.ts` (legacy text fallback: `structureFromText`)
 - Printed structure/labels: `src/lib/resume/render/document.tsx`
 - One-page fit engine budgets the same `text` strings this template renders: `src/lib/resume/fit.ts`
 

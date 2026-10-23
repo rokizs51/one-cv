@@ -36,6 +36,35 @@ describe('renderResumePdf + pdfPageCount', () => {
     expect(await pdfPageCount(bytes)).toBe(1);
   });
 
+  it('renders typed entry fields (header, bullets, technologies) without text parsing', async () => {
+    const structured: ResumeDoc = {
+      ...onePageDoc,
+      sections: [
+        {
+          id: 'experience',
+          items: [
+            {
+              sourceItemId: 'exp1',
+              text: 'Senior Engineer — Acme (Mar 2022–present)\nShipped X',
+              basis: 'scored',
+              header: {
+                title: 'Senior Engineer',
+                company: 'Acme',
+                dates: 'Mar 2022–present',
+                location: 'Remote',
+                employmentType: 'Full-time',
+              },
+              bullets: ['Shipped X'],
+              technologies: ['TypeScript', 'Postgres'],
+            },
+          ],
+        },
+      ],
+    };
+    const { pages } = await renderResumePdf(structured, 1);
+    expect(pages).toBe(1);
+  });
+
   it('renders a padded doc (25 fake experience bullets) as 2 pages', async () => {
     const paddedDoc: ResumeDoc = {
       ...onePageDoc,

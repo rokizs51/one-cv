@@ -63,6 +63,16 @@ describe('estimateLines', () => {
     const long = makeItem({ id: 'b', canonicalText: 'x'.repeat(500) });
     expect(estimateLines(long)).toBeGreaterThan(estimateLines(short));
   });
+
+  it('counts the meta and technologies lines the renderer draws outside text', () => {
+    const plain = makeItem({ id: 'a', canonicalText: 'Engineer — Acme (2022)\nBuilt X' });
+    const typed = makeItem({
+      id: 'b',
+      canonicalText: 'Engineer — Acme (2022)\nBuilt X',
+      payload: { location: 'Remote', technologies: ['Go'] },
+    });
+    expect(estimateLines(typed)).toBe(estimateLines(plain) + 2);
+  });
 });
 
 describe('fitToPage — relevance backfill', () => {

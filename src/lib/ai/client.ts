@@ -77,9 +77,27 @@ export function sanitizeSuggestions(
 }
 
 /**
+ * Fixed skills taxonomy (docs/ai_agent_resume_template.md). Grouping is
+ * presentation only, but a stable set of labels keeps the SKILLS block from
+ * changing shape between generations.
+ */
+export const SKILL_CATEGORIES = [
+  'Programming languages',
+  'Backend / frameworks',
+  'Frontend',
+  'Databases',
+  'Cloud / DevOps / infrastructure',
+  'Testing',
+  'Tools / integrations',
+  'Other relevant skills',
+] as const;
+const SKILL_FALLBACK = 'Other relevant skills';
+
+/**
  * Trust-boundary pass over skill groups: hallucinated and duplicate names are
- * dropped, then every input name no group claimed lands in "Other" — grouping
- * is presentation and must never lose a real skill on the way to the page.
+ * dropped, an unknown category label is coerced into the fixed taxonomy, and
+ * every input name no group claimed lands in the fallback group — grouping is
+ * presentation and must never lose a real skill on the way to the page.
  */
 export function finalizeGroups(
   names: string[],
@@ -87,6 +105,7 @@ export function finalizeGroups(
 ): SkillGroup[] {
   const wanted = new Set(names);
   const placed = new Set<string>();
+  const known = new Set<string>(SKILL_CATEGORIES);
   const out: SkillGroup[] = [];
   for (const g of groups) {
     const skills: string[] = [];
@@ -96,10 +115,13 @@ export function finalizeGroups(
         skills.push(name);
       }
     }
-    if (skills.length > 0) out.push({ category: g.category.trim() || 'Other', skills });
+    const category = g.category.trim();
+    if (skills.length > 0) {
+      out.push({ category: known.has(category) ? category : SKILL_FALLBACK, skills });
+    }
   }
   const leftovers = names.filter((n) => !placed.has(n));
-  if (leftovers.length > 0) out.push({ category: 'Other', skills: leftovers });
+  if (leftovers.length > 0) out.push({ category: SKILL_FALLBACK, skills: leftovers });
   return out;
 }
 
@@ -399,11 +421,14 @@ Instructions:
     },
 
     async groupSkills(names: string[]): Promise<SkillGroup[]> {
-      const prompt = `Group these skill names into a few sensible categories for a resume SKILLS section
-(e.g. Languages, Backend, Databases, DevOps & Tools, Frameworks, Data & ML, Testing — use your judgment).
+      const prompt = `Group these skill names for a resume SKILLS section.
+Use EXACTLY one of these category labels for every group:
+${SKILL_CATEGORIES.map((c) => `- ${c}`).join('\n')}
+
 Rules:
 - Every name must appear in exactly one group, spelled EXACTLY as given.
 - Invent nothing; these are presentation groups only.
+- Never invent a category label outside the list above.
 
 Skills: ${names.join(', ')}
 
@@ -454,7 +479,7 @@ Rules — these define correctness, not style:
 - followUpQuestion: what one question to the user would settle a needs_review/partial (omit when clear).
 - recommendation: how to surface the real evidence better in the CV (omit when nothing to adjust).
 
-Return a JSON object: {"matches": [{"requirementId": "…", "status": "supported|partial|needs_review|not_established|not_applicable", "confidence": "low|medium|high", "evidenceRefs": [{"itemId": "…", "sourceType": "career_snapshot|education|experience|project|award|skill|language"}], "explanation": "…", "followUpQuestion": "…", "recommendation": "…"}]}
+Return a JSON object: {"matches": [{"requirementId": "…", "status": "supported|partial|needs_review|not_established|not_applicable", "confidence": "low|medium|high", "evidenceRefs": [{"itemId": "…", "sourceType": "career_snapshot|education|experience|project|certification|award|skill|language"}], "explanation": "…", "followUpQuestion": "…", "recommendation": "…"}]}
 Every requirement id must appear exactly once.`;
 
       return withParseRetry(

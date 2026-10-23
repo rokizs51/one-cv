@@ -164,18 +164,18 @@ describe('preserveHeaderLines marker-blind compare', () => {
 });
 
 describe('finalizeGroups', () => {
-  it('drops hallucinated and duplicated names, sweeps unclaimed ones into Other', () => {
+  it('drops hallucinated and duplicated names, coerces unknown labels, sweeps unclaimed ones into the fallback group', () => {
     const out = finalizeGroups(
       ['Go', 'Rust', 'Kubernetes'],
       [
-        { category: 'Languages', skills: ['Go', 'Go', 'TypeScript'] },
+        { category: 'Programming languages', skills: ['Go', 'Go', 'TypeScript'] },
         { category: '  ', skills: ['Rust'] },
       ]
     );
     expect(out).toEqual([
-      { category: 'Languages', skills: ['Go'] },
-      { category: 'Other', skills: ['Rust'] },
-      { category: 'Other', skills: ['Kubernetes'] },
+      { category: 'Programming languages', skills: ['Go'] },
+      { category: 'Other relevant skills', skills: ['Rust'] },
+      { category: 'Other relevant skills', skills: ['Kubernetes'] },
     ]);
   });
 });

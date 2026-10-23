@@ -6,7 +6,7 @@ import { getResume, updateResumeFields, deleteResume } from '@/lib/db/resumes';
 import { getJd } from '@/lib/db/jds';
 import { getItem, acceptText } from '@/lib/db/items';
 import { preserveHeaderLines } from '@/lib/ai/client';
-import { normalizeManualText } from '@/lib/domain/canonical';
+import { normalizeManualText, structureFromText } from '@/lib/domain/canonical';
 import { refitFromDoc } from '@/lib/resume/refit';
 import type { JdExtraction, ResumeDoc, SuggestionState } from '@/lib/domain/types';
 
@@ -308,6 +308,9 @@ export async function PATCH(
                   )[0].newText;
                   entry.finalText = applied;
                   item.text = applied;
+                  // Keep the typed fields the PDF draws in sync with the
+                  // accepted wording (the header line is restored above).
+                  Object.assign(item, structureFromText(section.id, applied));
                   hit = true;
                 }
               }

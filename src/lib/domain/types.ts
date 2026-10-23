@@ -4,6 +4,7 @@ export type ItemType =
   | 'education'
   | 'experience'
   | 'project'
+  | 'certification'
   | 'award'
   | 'skill'
   | 'language';
@@ -75,6 +76,7 @@ export type SectionId =
   | 'experience'
   | 'projects'
   | 'education'
+  | 'certifications'
   | 'awards'
   | 'languages';
 
@@ -104,6 +106,18 @@ export interface ResumeHeader {
   links: string[];
 }
 
+// The parts of an entry the PDF lays out separately. Generated docs carry
+// these from the profile payload; legacy stored docs only have `text` and the
+// renderer derives them once (structureFromText).
+export interface ResumeEntryHeader {
+  title: string;
+  company: string;
+  // Display-ready range ("Mar 2022–present"); empty when there is none.
+  dates: string;
+  location?: string;
+  employmentType?: string;
+}
+
 export interface ResumeDocItem {
   sourceItemId: string;
   text: string;
@@ -111,6 +125,12 @@ export interface ResumeDocItem {
   // Skills only: presentation label ("Backend", "Databases"…), grouped by the
   // renderer. Never stored on the profile item — it is per-CV tailoring.
   category?: string;
+  header?: ResumeEntryHeader;
+  // Projects: the one-line body between the name and the technologies.
+  description?: string;
+  // Experience: one entry per achievement line, marker-free.
+  bullets?: string[];
+  technologies?: string[];
 }
 
 export interface ResumeSection {

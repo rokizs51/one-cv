@@ -23,6 +23,7 @@ const ITEM_TYPE_VALUES = [
   'education',
   'experience',
   'project',
+  'certification',
   'award',
   'skill',
   'language',

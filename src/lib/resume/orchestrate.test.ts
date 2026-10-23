@@ -160,6 +160,38 @@ describe('orchestrate.ts', () => {
       expect(expSection!.items[0].text).toBe('Built React apps with TypeScript');
     });
 
+    it('attaches typed entry fields from the profile payload', async () => {
+      const ai = makeFakeGenAI();
+      const items = [
+        makeItem({
+          id: 'exp-1',
+          type: 'experience',
+          canonicalText: 'Engineer — Acme (2022–2024)\nBuilt X',
+          payload: {
+            company: 'Acme',
+            role: 'Engineer',
+            start: '2022',
+            end: '2024',
+            bullets: ['Built X'],
+            technologies: ['Go'],
+          },
+        }),
+      ];
+
+      const supa = configureSupaForGeneration('profile-1', items, defaultExtraction);
+      const deps = makeDeps({ supa, ai });
+      const result = await generateResume(deps, { jdId: 'jd-1', mode: 'as_is', pageLimit: 1 });
+
+      const expSection = result.doc.sections.find((s) => s.id === 'experience');
+      expect(expSection!.items[0].header).toEqual({
+        title: 'Engineer',
+        company: 'Acme',
+        dates: '2022–2024',
+      });
+      expect(expSection!.items[0].bullets).toEqual(['Built X']);
+      expect(expSection!.items[0].technologies).toEqual(['Go']);
+    });
+
     it('uses career_snapshot verbatim as summary when present', async () => {
       const ai = makeFakeGenAI();
       const items = [

@@ -49,13 +49,17 @@ export const EducationPayloadSchema = z.object({
   endYear: z.number(),
 }).strict();
 
-// Experience
+// Experience. location / employmentType / technologies are optional because
+// stored payloads predate them; empty values are meaningful as "not stated".
 export const ExperiencePayloadSchema = z.object({
   company: z.string(),
   role: z.string(),
   start: z.string(),
   end: z.string(),
   bullets: z.array(z.string()),
+  location: z.string().optional(),
+  employmentType: z.string().optional(),
+  technologies: z.array(z.string()).optional(),
 }).strict();
 
 // Project
@@ -68,6 +72,13 @@ export const ProjectPayloadSchema = z.object({
 // Award
 export const AwardPayloadSchema = z.object({
   title: z.string(),
+  issuer: z.string(),
+  year: z.number(),
+}).strict();
+
+// Certification
+export const CertificationPayloadSchema = z.object({
+  name: z.string(),
   issuer: z.string(),
   year: z.number(),
 }).strict();
@@ -91,6 +102,7 @@ export const PAYLOAD_SCHEMAS: Record<ItemType, z.ZodType<{ [k: string]: unknown 
   education: EducationPayloadSchema,
   experience: ExperiencePayloadSchema,
   project: ProjectPayloadSchema,
+  certification: CertificationPayloadSchema,
   award: AwardPayloadSchema,
   skill: SkillPayloadSchema,
   language: LanguagePayloadSchema,
@@ -124,13 +136,37 @@ export const ResumeDocSchema = z.object({
   summary: z.string().nullable(),
   sections: z.array(
     z.object({
-      id: z.enum(['summary', 'skills', 'experience', 'projects', 'education', 'awards', 'languages']),
+      id: z.enum([
+        'summary',
+        'skills',
+        'experience',
+        'projects',
+        'education',
+        'certifications',
+        'awards',
+        'languages',
+      ]),
       items: z.array(
         z.object({
           sourceItemId: z.string(),
           text: z.string(),
           basis: z.string(),
           category: z.string().optional(),
+          // Optional so docs stored before the structured-entry change still
+          // parse; the renderer derives these from `text` when absent. Listed
+          // explicitly because zod strips keys a schema does not name.
+          header: z
+            .object({
+              title: z.string(),
+              company: z.string(),
+              dates: z.string(),
+              location: z.string().optional(),
+              employmentType: z.string().optional(),
+            })
+            .optional(),
+          description: z.string().optional(),
+          bullets: z.array(z.string()).optional(),
+          technologies: z.array(z.string()).optional(),
         })
       ),
     })

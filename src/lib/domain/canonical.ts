@@ -1,4 +1,4 @@
-import type { ItemType } from './types';
+import type { ItemType, ResumeEntryHeader, SectionId } from './types';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -119,6 +119,11 @@ function assemble(
       const year = num('year');
       return `${str('title')}${issuer ? ` — ${issuer}` : ''}${year ? ` (${year})` : ''}`;
     }
+    case 'certification': {
+      const issuer = str('issuer');
+      const year = num('year');
+      return `${str('name')}${issuer ? ` — ${issuer}` : ''}${year ? ` (${year})` : ''}`;
+    }
     case 'skill': {
       const level = str('level');
       return level ? `${str('name')} (${level})` : str('name');
@@ -149,7 +154,125 @@ export function splitProject(text: string): { name: string; desc: string; tech: 
   };
 }
 
-function dateRange(start: string, end: string): string {
+function dateSpan(start: string, end: string): string {
   if (!start && !end) return '';
-  return ` (${start ? formatDate(start) : '—'}–${end ? formatDate(end) : 'present'})`;
+  return `${start ? formatDate(start) : '—'}–${end ? formatDate(end) : 'present'}`;
+}
+
+function dateRange(start: string, end: string): string {
+  const span = dateSpan(start, end);
+  return span ? ` (${span})` : '';
+}
+
+/** The entry parts the PDF lays out separately (header, bullets, tech). */
+export interface DocStructure {
+  header?: ResumeEntryHeader;
+  description?: string;
+  bullets?: string[];
+  technologies?: string[];
+}
+
+/**
+ * Structured entry fields straight from the profile payload — the
+ * uncorrupted source. Generated docs carry these so the renderer never has
+ * to re-parse canonical text; only stored legacy docs go through
+ * structureFromText. Returns {} for one-line sections.
+ */
+export function structureFor(section: SectionId, payload: Record<string, unknown>): DocStructure {
+  const str = (key: string): string => {
+    const v = payload[key];
+    return typeof v === 'string' ? v.trim() : '';
+  };
+  const list = (key: string): string[] => {
+    const v = payload[key];
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : [];
+  };
+
+  if (section === 'projects') {
+    const out: DocStructure = {};
+    const title = str('name').replace(/\s+/g, ' ');
+    if (title) out.header = { title, company: '', dates: '' };
+    const description = str('description').replace(/\s+/g, ' ');
+    if (description) out.description = description;
+    const technologies = list('tech');
+    if (technologies.length > 0) out.technologies = technologies;
+    return out;
+  }
+
+  if (section === 'experience') {
+    const out: DocStructure = {};
+    const location = str('location');
+    const employmentType = str('employmentType');
+    const header: ResumeEntryHeader = {
+      title: str('role'),
+      company: str('company'),
+      dates: dateSpan(str('start'), str('end')),
+      ...(location ? { location } : {}),
+      ...(employmentType ? { employmentType } : {}),
+    };
+    if (header.title || header.company || header.dates || header.location || header.employmentType) {
+      out.header = header;
+    }
+    const bullets = list('bullets').map(stripBullet).filter((b) => b !== '');
+    if (bullets.length > 0) out.bullets = bullets;
+    const technologies = list('technologies');
+    if (technologies.length > 0) out.technologies = technologies;
+    return out;
+  }
+
+  return {};
+}
+
+/**
+ * Derives the same fields from canonical text — for docs stored before the
+ * structured change and for accepted suggestion text. The canonical header
+ * format is deterministic ("Role — Company (dates)"), so this is exact for
+ * rows this codebase wrote; hand-edited legacy text is the only guess.
+ */
+export function structureFromText(section: SectionId, text: string): DocStructure {
+  if (section === 'projects') {
+    const { name, desc, tech } = splitProject(text);
+    const out: DocStructure = {};
+    if (name) out.header = { title: name, company: '', dates: '' };
+    const description = desc.replace(/^ — /, '');
+    if (description) out.description = description;
+    const technologies = tech
+      .replace(/^ \(/, '')
+      .replace(/\)$/, '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '');
+    if (technologies.length > 0) out.technologies = technologies;
+    return out;
+  }
+
+  if (section === 'experience') {
+    const lines = text.split('\n');
+    const head = (lines[0] ?? '').trim();
+    const bullets = lines.slice(1).map(stripBullet).filter((l) => l !== '');
+    const out: DocStructure = {};
+    // A first line that is itself a bullet means the entry never had a
+    // header line — every line is a bullet.
+    if (head !== '' && !/^\s*[-–—]\s+/.test(head) && !/^\s*[•▪·‣*]\s*/.test(head)) {
+      out.header = parseHeaderLine(head);
+    } else if (head !== '') {
+      bullets.unshift(stripBullet(head));
+    }
+    if (bullets.length > 0) out.bullets = bullets;
+    return out;
+  }
+
+  return {};
+}
+
+function parseHeaderLine(head: string): ResumeEntryHeader {
+  const datesMatch = / \(([^()]*)\)\s*$/.exec(head);
+  const dates = datesMatch ? formatDatesInText(datesMatch[1]) : '';
+  const rest = datesMatch ? head.slice(0, datesMatch.index) : head;
+  const sep = rest.indexOf(' — ');
+  return {
+    title: (sep >= 0 ? rest.slice(0, sep) : rest).trim(),
+    company: sep >= 0 ? rest.slice(sep + 3).trim() : '',
+    dates,
+  };
 }
