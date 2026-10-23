@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createRouteClient } from '@/lib/db/client';
 import { getSessionUser } from '@/lib/auth/session';
 import { listResumes, toSummary } from '@/lib/db/resumes';
+import { currentUsage, GENERATIONS_CAP } from '@/lib/db/quota';
 
 export async function GET() {
   // This reads the session cookie, so it's request-only: terminate any build
@@ -22,9 +23,20 @@ export async function GET() {
     const cookieStore = await cookies();
     const supabase = await createRouteClient(cookieStore);
 
-    const resumes = await listResumes(supabase, user.id);
+    const [resumes, usage] = await Promise.all([
+      listResumes(supabase, user.id),
+      currentUsage(supabase, user.id),
+    ]);
     // Summaries only: full docs belong to the by-id endpoint (see ResumeSummary).
-    return NextResponse.json({ resumes: resumes.map(toSummary) }, { status: 200 });
+    // Quota rides along so the dashboard shows the server's ledger — deleting a
+    // CV does not refund a generation, and the month boundary is UTC.
+    return NextResponse.json(
+      {
+        resumes: resumes.map(toSummary),
+        quota: { used: usage.generations, cap: GENERATIONS_CAP },
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('Resume list error:', error);
     return NextResponse.json(

@@ -84,5 +84,6 @@ describe('GET /api/resumes', () => {
     expect(data.resumes[0]).not.toHaveProperty('fit');
     expect(data.resumes[0].id).toBeTruthy();
     expect(data.resumes[0].mode).toBe('as_is');
+    expect(data.quota).toEqual({ used: 0, cap: 50 });
   });
 });

@@ -50,8 +50,8 @@ export default function VersionList({
         </span>
         <p className="text-sm font-medium text-ink">No CVs yet</p>
         <p className="max-w-xs text-sm text-mute">
-          Paste a job description in the box above. WePaste a job description in the box above — we&apos;ll build your first one from yourapos;ll build your first one from your
-          profile.
+          Paste a job description in the box above — we&apos;ll build your first one from
+          your profile.
         </p>
       </Card>
     );

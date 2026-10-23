@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('GET /api/account/export', () => {
+describe('GET /api/account (JSON export)', () => {
   it('returns 401 without a session', async () => {
     mockGetSessionUser.mockResolvedValue(null);
     expect((await GET()).status).toBe(401);

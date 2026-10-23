@@ -43,11 +43,11 @@ export default function SettingsApp() {
         <div>
           <SectionHeading className="mb-1">Your data</SectionHeading>
           <p className="max-w-md text-sm leading-6 text-mute">
-            Download everything youDownload everything you&apos;ve recorded — profile, job descriptions, and everyapos;ve recorded: profile, job descriptions, and every
+            Download everything you&apos;ve recorded: profile, job descriptions, and every
             generated CV, as a JSON file.
           </p>
         </div>
-        <a href="/api/account/export" className={buttonCls('secondary', 'lg', 'shrink-0')}>
+        <a href="/api/account" className={buttonCls('secondary', 'lg', 'shrink-0')}>
           <DownloadSimple aria-hidden size={18} weight="bold" />
           Export my data (JSON)
         </a>

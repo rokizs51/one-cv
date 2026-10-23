@@ -127,7 +127,7 @@ export default function AnalysisView({ analysis: initial, stale: initialStale, e
         <h1 className="text-3xl font-bold tracking-tight text-ink">Match analysis</h1>
         <p className="mt-2 text-sm text-mute">
           What this job asks for, checked against what your profile actually records.
-          Nothing here is a verdict about you. Only about whatNothing here is a verdict about you — only about what&apos;s on file.apos;s on file.
+          Nothing here is a verdict about you — only about what&apos;s on file.
         </p>
       </div>
 
