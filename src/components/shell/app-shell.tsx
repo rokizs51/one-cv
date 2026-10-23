@@ -13,6 +13,7 @@ import {
   Scissors,
 } from '@phosphor-icons/react';
 import SignOutButton from '@/components/sign-out-button';
+import { Wordmark as BrandWordmark, Monogram } from '@/components/brand/wordmark';
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
 const COLLAPSE_EVENT = 'sidebar-collapsed-change';
@@ -116,15 +117,9 @@ function Wordmark() {
   return (
     <Link
       href="/dashboard"
-      className="flex min-h-10 items-center gap-2.5 px-3 py-2 transition-colors hover:bg-surface-2"
+      className="flex min-h-10 items-center px-3 py-2 transition-colors hover:bg-surface-2"
     >
-      <span
-        aria-hidden
-        className="flex size-8 shrink-0 items-center justify-center rounded-none bg-primary text-white"
-      >
-        <Scissors size={16} weight="bold" />
-      </span>
-      <span className="text-sm font-semibold tracking-tight text-ink">Sever</span>
+      <BrandWordmark className="text-xl" />
     </Link>
   );
 }
@@ -166,10 +161,11 @@ export default function AppShell({ children, email }: { children: ReactNode; ema
           {collapsed ? (
             <Link
               href="/dashboard"
+              aria-label="Sever"
               title="Sever"
-              className="mx-auto flex size-10 items-center justify-center rounded-none bg-primary text-white transition-colors hover:brightness-95"
+              className="mx-auto flex size-10 items-center justify-center transition-colors hover:bg-surface-2"
             >
-              <Scissors aria-hidden size={18} weight="bold" />
+              <Monogram className="text-xl" />
             </Link>
           ) : (
             <Wordmark />

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Scissors } from '@phosphor-icons/react/ssr';
 import SignupForm from './signup-form';
+import { Wordmark } from '@/components/brand/wordmark';
 import { getSessionUser } from '@/lib/auth/session';
 
 // Session-reading pages must block on the server so the guard can
@@ -16,15 +16,7 @@ export default async function SignupPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center gap-2.5 text-sm font-semibold tracking-tight text-ink">
-          <span
-            aria-hidden
-            className="flex size-8 items-center justify-center bg-primary text-on-primary"
-          >
-            <Scissors size={17} weight="bold" />
-          </span>
-          Sever
-        </div>
+        <Wordmark className="mb-6 block text-2xl" />
         <div className="bg-surface p-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-ink">Create your account</h1>

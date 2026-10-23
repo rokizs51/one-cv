@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 // SSR entry: the main barrel calls React.createContext at module scope, which
 // fails during React Server Components evaluation.
-import { Scissors } from '@phosphor-icons/react/ssr';
 import { getSessionUser } from '@/lib/auth/session';
+import { Wordmark } from '@/components/brand/wordmark';
 import Reveal from '@/components/landing/reveal';
 import StageProvider from '@/components/landing/stage-provider';
 import Sheet from '@/components/landing/paper-stage';
@@ -39,12 +39,7 @@ export default async function HomePage() {
 
       <StageProvider initialRole="frontend">
         <header className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-6 py-5">
-          <span className="flex items-center gap-2.5 text-base font-semibold tracking-tight">
-            <span aria-hidden className="flex size-8 items-center justify-center bg-primary text-on-primary">
-              <Scissors size={16} weight="bold" />
-            </span>
-            Sever
-          </span>
+          <Wordmark className="text-xl" />
           <nav aria-label="Public" className="flex items-center gap-6">
             <Link href="/login" className="text-sm text-ink underline-offset-4 transition-colors hover:underline">
               Sign in
