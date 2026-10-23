@@ -20,6 +20,7 @@ export const TYPE_LABELS: Record<ItemType, string> = {
   education: 'Education',
   experience: 'Work experience',
   project: 'Project',
+  certification: 'Certification',
   award: 'Award',
   skill: 'Skill',
   language: 'Language',
@@ -45,12 +46,20 @@ export const TYPE_FIELDS: Record<ItemType, FieldDef[]> = {
     { key: 'role', label: 'Role', kind: 'text' },
     { key: 'start', label: 'Start (e.g. 2022 or 2022-03)', kind: 'text' },
     { key: 'end', label: 'End (leave empty if current)', kind: 'text', optional: true },
+    { key: 'location', label: 'Location (optional)', kind: 'text', optional: true },
+    { key: 'employmentType', label: 'Employment type (e.g. Full-time)', kind: 'text', optional: true },
     { key: 'bullets', label: 'Bullets (one per line)', kind: 'lines' },
+    { key: 'technologies', label: 'Technologies used (comma separated, optional)', kind: 'list', optional: true },
   ],
   project: [
     { key: 'name', label: 'Project name', kind: 'text' },
     { key: 'description', label: 'What it does', kind: 'textarea' },
     { key: 'tech', label: 'Tech used (comma separated)', kind: 'list' },
+  ],
+  certification: [
+    { key: 'name', label: 'Certification name', kind: 'text' },
+    { key: 'issuer', label: 'Issued by', kind: 'text' },
+    { key: 'year', label: 'Year', kind: 'number' },
   ],
   award: [
     { key: 'title', label: 'Award title', kind: 'text' },

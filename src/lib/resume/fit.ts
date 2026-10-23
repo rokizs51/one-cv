@@ -45,10 +45,21 @@ export function estimateTextLines(text: string, width?: number): number {
 
 /**
  * Estimates the number of wrapped lines a ProfileItem will occupy.
- * Uses canonicalText length divided by chars-per-line heuristic.
+ * Uses canonicalText length divided by chars-per-line heuristic, plus the
+ * typed entry lines the renderer draws outside that text (the location /
+ * employment-type meta line and the technologies line).
  */
 export function estimateLines(item: ProfileItem, width?: number): number {
-  return estimateTextLines(item.canonicalText, width);
+  let lines = estimateTextLines(item.canonicalText, width);
+  if (item.type === 'experience') {
+    const p = item.payload;
+    const located =
+      (typeof p.location === 'string' && p.location.trim() !== '') ||
+      (typeof p.employmentType === 'string' && p.employmentType.trim() !== '');
+    if (located) lines += 1;
+    if (Array.isArray(p.technologies) && p.technologies.length > 0) lines += 1;
+  }
+  return lines;
 }
 
 /**

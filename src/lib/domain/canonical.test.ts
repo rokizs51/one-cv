@@ -1,5 +1,70 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalTextFor, splitProject, stripBullet, normalizeManualText, formatDate, formatDatesInText } from './canonical';
+import { canonicalTextFor, splitProject, stripBullet, normalizeManualText, formatDate, formatDatesInText, structureFor, structureFromText } from './canonical';
+
+describe('structureFor', () => {
+  it('experience: typed header, bullets and technologies straight from the payload', () => {
+    expect(
+      structureFor('experience', {
+        company: 'Acme',
+        role: 'Senior Engineer',
+        start: '2022-03',
+        end: '',
+        location: 'Remote',
+        employmentType: 'Full-time',
+        bullets: ['- Shipped X', 'Led Y'],
+        technologies: ['TypeScript', 'Postgres'],
+      })
+    ).toEqual({
+      header: {
+        title: 'Senior Engineer',
+        company: 'Acme',
+        dates: 'Mar 2022–present',
+        location: 'Remote',
+        employmentType: 'Full-time',
+      },
+      bullets: ['Shipped X', 'Led Y'],
+      technologies: ['TypeScript', 'Postgres'],
+    });
+  });
+
+  it('projects: name, description and tech from the payload', () => {
+    expect(
+      structureFor('projects', { name: 'Tailor', description: 'CV tailor', tech: ['Go', 'React'] })
+    ).toEqual({
+      header: { title: 'Tailor', company: '', dates: '' },
+      description: 'CV tailor',
+      technologies: ['Go', 'React'],
+    });
+  });
+
+  it('one-line sections stay unstructured (empty payload → no fields)', () => {
+    expect(structureFor('education', {})).toEqual({});
+    expect(structureFor('experience', {})).toEqual({});
+  });
+});
+
+describe('structureFromText (legacy docs)', () => {
+  it('splits the canonical experience header and bullets without a payload', () => {
+    expect(structureFromText('experience', 'Engineer — Acme (2022-03–2025)\n• Shipped X\nLed Y')).toEqual({
+      header: { title: 'Engineer', company: 'Acme', dates: 'Mar 2022–2025' },
+      bullets: ['Shipped X', 'Led Y'],
+    });
+  });
+
+  it('a headerless legacy entry keeps every line as a bullet', () => {
+    expect(structureFromText('experience', '• Did X\n• Did Y')).toEqual({
+      bullets: ['Did X', 'Did Y'],
+    });
+  });
+
+  it('inverts the one-line project canonical', () => {
+    expect(structureFromText('projects', 'Tailor — CV tailor (Go, React)')).toEqual({
+      header: { title: 'Tailor', company: '', dates: '' },
+      description: 'CV tailor',
+      technologies: ['Go', 'React'],
+    });
+  });
+});
 
 describe('canonicalTextFor', () => {
   it('career_snapshot is the text verbatim', () => {
@@ -97,6 +162,12 @@ describe('canonicalTextFor', () => {
   it('award: title — issuer (year)', () => {
     expect(canonicalTextFor('award', { title: 'Hackathon 1st', issuer: 'DevConf', year: 2024 })).toBe(
       'Hackathon 1st — DevConf (2024)'
+    );
+  });
+
+  it('certification: name — issuer (year)', () => {
+    expect(canonicalTextFor('certification', { name: 'AWS Solutions Architect', issuer: 'Amazon', year: 2024 })).toBe(
+      'AWS Solutions Architect — Amazon (2024)'
     );
   });
 

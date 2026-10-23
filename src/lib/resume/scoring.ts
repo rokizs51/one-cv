@@ -1,4 +1,5 @@
 import type { ItemType, JdExtraction, ProfileItem, ResumeSection, SectionId } from '@/lib/domain/types';
+import { structureFor } from '@/lib/domain/canonical';
 
 export interface ScoredItem {
   item: ProfileItem;
@@ -18,6 +19,7 @@ const TYPE_TO_SECTION: Record<ItemType, SectionId> = {
   education: 'education',
   experience: 'experience',
   project: 'projects',
+  certification: 'certifications',
   award: 'awards',
   skill: 'skills',
   language: 'languages',
@@ -146,6 +148,7 @@ const BASE_ORDER: SectionId[] = [
   'experience',
   'skills',
   'education',
+  'certifications',
   'projects',
   'awards',
   'languages',
@@ -157,6 +160,7 @@ const EARLY_CAREER_ORDER: SectionId[] = [
   'projects',
   'experience',
   'skills',
+  'certifications',
   'awards',
   'languages',
 ];
@@ -210,6 +214,9 @@ export function orderSections(
         sourceItemId: si.item.id,
         text: si.item.canonicalText,
         basis: 'scored',
+        // Payload → typed fields, so the renderer never re-parses canonical
+        // text for freshly generated docs.
+        ...structureFor(sectionId, si.item.payload),
       }));
 
       sections.push({

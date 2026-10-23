@@ -105,7 +105,10 @@ describe('ItemEditor', () => {
           role: 'Dev',
           start: '2022',
           end: '2025',
+          location: '',
+          employmentType: '',
           bullets: ['Shipped X', 'Led Y', 'Ran Z'],
+          technologies: [],
         },
       })
     );

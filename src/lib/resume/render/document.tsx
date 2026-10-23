@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, Link, StyleSheet } from '@react-pdf/renderer';
-import type { ResumeDoc, ResumeDocItem, SectionId } from '@/lib/domain/types';
-import { splitProject, stripBullet, formatDatesInText } from '@/lib/domain/canonical';
+import type { ResumeDoc, ResumeDocItem, ResumeEntryHeader, SectionId } from '@/lib/domain/types';
+import { structureFromText, formatDatesInText } from '@/lib/domain/canonical';
 
 /**
  * The printed CV, structured to the ATS reference in
@@ -16,6 +16,7 @@ const SECTION_LABEL: Record<SectionId, string> = {
   experience: 'WORK EXPERIENCE',
   skills: 'SKILLS',
   education: 'EDUCATION',
+  certifications: 'CERTIFICATIONS',
   projects: 'PROJECTS',
   awards: 'AWARDS',
   languages: 'LANGUAGES',
@@ -95,40 +96,69 @@ const styles = StyleSheet.create({
   body: {
     marginBottom: 2,
   },
+  entryMeta: {
+    fontSize: 9,
+    marginBottom: 2,
+  },
 });
 
-/** Canonical experience text is "Role — Company (dates)\nbullet\nbullet";
- * markers (if any legacy row still has them) are stripped and redrawn here. */
-function Entry({ text }: { text: string }) {
-  const lines = text.split('\n');
-  const head = formatDatesInText(lines[0]);
-  const rest = lines.slice(1).map(stripBullet).filter((l) => l !== '');
+function headerLine(h: ResumeEntryHeader): React.ReactNode {
+  return (
+    <>
+      {h.title}
+      {h.company !== '' ? ` — ${h.company}` : ''}
+      {h.dates !== '' ? ` (${h.dates})` : ''}
+    </>
+  );
+}
+
+/** Experience entry drawn from its typed fields; docs stored before the
+ * structured change fall back to deriving them from `text` once. */
+function ExperienceEntry({ item }: { item: ResumeDocItem }) {
+  const s = item.header ? item : structureFromText('experience', item.text);
+  const header = s.header;
+  const bullets = s.bullets ?? [];
+  const technologies = s.technologies ?? [];
+  const meta = [header?.location, header?.employmentType].filter(Boolean).join('  •  ');
   return (
     // wrap={false}: an entry stays whole across page breaks where practical
     <View style={styles.entry} wrap={false}>
-      <Text style={rest.length > 0 ? styles.entryHead : undefined}>{head}</Text>
-      {rest.map((line, i) => (
+      {header && <Text style={bullets.length > 0 ? styles.entryHead : undefined}>{headerLine(header)}</Text>}
+      {meta !== '' && <Text style={styles.entryMeta}>{meta}</Text>}
+      {bullets.map((line, i) => (
         <View key={i} style={styles.bulletRow}>
           <Text style={styles.bulletMarker}>•</Text>
           <Text style={styles.bulletText}>{line}</Text>
         </View>
       ))}
+      {technologies.length > 0 && (
+        <Text style={styles.entryMeta}>Technologies: {technologies.join(', ')}</Text>
+      )}
     </View>
   );
 }
 
-/** Projects are one line "Name — description (Tech)": name and tech bold. */
-function ProjectEntry({ text }: { text: string }) {
-  const { name, desc, tech } = splitProject(text);
+/** Projects: name bold, one-line description, technologies bold — drawn from
+ * typed fields, with the legacy text parse as the fallback. */
+function ProjectEntry({ item }: { item: ResumeDocItem }) {
+  const s = item.header ? item : structureFromText('projects', item.text);
+  const name = s.header?.title ?? '';
+  const description = s.description ?? '';
+  const technologies = s.technologies ?? [];
   return (
     <View style={styles.entry}>
       <Text>
         <Text style={styles.entryHead}>{name}</Text>
-        {desc}
-        {tech !== '' && <Text style={styles.entryHead}>{tech}</Text>}
+        {description !== '' ? ` — ${description}` : ''}
+        {technologies.length > 0 && <Text style={styles.entryHead}>{` (${technologies.join(', ')})`}</Text>}
       </Text>
     </View>
   );
+}
+
+/** Education / certifications / awards / languages: one display line each. */
+function LineEntry({ text }: { text: string }) {
+  return <Text style={styles.body}>{formatDatesInText(text)}</Text>;
 }
 
 /** Group categorized skill items for one labeled line per category
@@ -232,9 +262,11 @@ export function ResumeDocument({ doc }: ResumeDocumentProps) {
             ) : (
               section.items.map((item) =>
                 section.id === 'projects' ? (
-                  <ProjectEntry key={item.sourceItemId} text={item.text} />
+                  <ProjectEntry key={item.sourceItemId} item={item} />
+                ) : section.id === 'experience' ? (
+                  <ExperienceEntry key={item.sourceItemId} item={item} />
                 ) : (
-                  <Entry key={item.sourceItemId} text={item.text} />
+                  <LineEntry key={item.sourceItemId} text={item.text} />
                 )
               )
             )}

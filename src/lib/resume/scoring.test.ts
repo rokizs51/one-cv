@@ -224,6 +224,7 @@ describe('orderSections', () => {
       makeItem({ type: 'experience', id: '3' }),
       makeItem({ type: 'project', id: '4' }),
       makeItem({ type: 'education', id: '5' }),
+      makeItem({ type: 'certification', id: '8' }),
       makeItem({ type: 'award', id: '6' }),
       makeItem({ type: 'language', id: '7' }),
     ];
@@ -247,6 +248,7 @@ describe('orderSections', () => {
       'experience',
       'skills',
       'education',
+      'certifications',
       'projects',
       'awards',
       'languages',
@@ -260,6 +262,7 @@ describe('orderSections', () => {
       makeItem({ type: 'experience', id: '3' }),
       makeItem({ type: 'project', id: '4' }),
       makeItem({ type: 'education', id: '5' }),
+      makeItem({ type: 'certification', id: '8' }),
       makeItem({ type: 'award', id: '6' }),
       makeItem({ type: 'language', id: '7' }),
     ];
@@ -282,6 +285,7 @@ describe('orderSections', () => {
       'projects',
       'experience',
       'skills',
+      'certifications',
       'awards',
       'languages',
     ]);
