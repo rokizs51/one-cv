@@ -82,9 +82,9 @@ describe('landing page', () => {
     expect(redirectCalls).toEqual([]);
   });
 
-  it('sends signed-in visitors to their dashboard', async () => {
+  it('renders for signed-in visitors (no redirect)', async () => {
     mockGetSessionUser.mockResolvedValue({ id: 'u1', email: 'u@example.com' });
-    expect(await settle(() => HomePage())).toBe('redirected');
-    expect(redirectCalls).toEqual(['/dashboard']);
+    expect(await settle(() => HomePage())).toBe('rendered');
+    expect(redirectCalls).toEqual([]);
   });
 });

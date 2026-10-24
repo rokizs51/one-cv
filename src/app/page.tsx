@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 // SSR entry: the main barrel calls React.createContext at module scope, which
 // fails during React Server Components evaluation.
 import { getSessionUser } from '@/lib/auth/session';
@@ -11,8 +10,8 @@ import { CtaPaste, RoleIndex, StageClause, StageSlider } from '@/components/land
 import { ROLES, type RoleId } from '@/components/landing/record-data';
 import { buttonCls } from '@/components/ui/button';
 
-// Session-reading pages must block on the server so the guard can
-// redirect before anything renders (cacheComponents sanctioned opt-out).
+// Reads the session to pick the nav links, so it must block on the server
+// (cacheComponents sanctioned opt-out).
 export const instant = false;
 
 const ROLE_CHOICES = (Object.keys(ROLES) as RoleId[]).map((id) => ({
@@ -29,7 +28,6 @@ const SKILLS = ['React', 'TypeScript', 'GraphQL', 'Kubernetes', 'design systems'
  */
 export default async function HomePage() {
   const user = await getSessionUser();
-  if (user) redirect('/dashboard');
 
   return (
     <main className="bg-background font-serif text-body text-ink">
@@ -41,12 +39,20 @@ export default async function HomePage() {
         <header className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-6 py-5">
           <Wordmark className="text-xl" />
           <nav aria-label="Public" className="flex items-center gap-6">
-            <Link href="/login" className="text-sm text-ink underline-offset-4 transition-colors hover:underline">
-              Sign in
-            </Link>
-            <Link href="/signup" className={buttonCls('primary', 'md')}>
-              Create account
-            </Link>
+            {user ? (
+              <Link href="/dashboard" className={buttonCls('primary', 'md')}>
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm text-ink underline-offset-4 transition-colors hover:underline">
+                  Sign in
+                </Link>
+                <Link href="/signup" className={buttonCls('primary', 'md')}>
+                  Create account
+                </Link>
+              </>
+            )}
           </nav>
         </header>
 
@@ -224,8 +230,14 @@ export default async function HomePage() {
         <footer className="mx-auto grid w-full max-w-[1440px] gap-4 px-6 py-10 text-sm sm:grid-cols-[1fr_auto_1fr] sm:items-center">
           <span className="text-mute">Sever: one record, a CV per posting.</span>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 sm:justify-center">
-            <Link href="/login" className="text-ink underline-offset-4 hover:underline">Sign in</Link>
-            <Link href="/signup" className="text-ink underline-offset-4 hover:underline">Create account</Link>
+            {user ? (
+              <Link href="/dashboard" className="text-ink underline-offset-4 hover:underline">Dashboard</Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-ink underline-offset-4 hover:underline">Sign in</Link>
+                <Link href="/signup" className="text-ink underline-offset-4 hover:underline">Create account</Link>
+              </>
+            )}
           </nav>
           <span className="text-mute sm:text-right">
             2026 · Your data belongs to you: export or delete it any time.
